@@ -1,0 +1,12 @@
+Create or update the project's AGENTS.md at ${path}: the file every OpenScience session reads before working here.
+
+Inspect the project first (README, notebooks, scripts, data folders, manuscripts, configs, existing AGENTS.md) and write about 100 lines that a fresh agent needs:
+1. Research question and current status: what is being studied, what has been established, what is open.
+2. Data: where inputs live (paths), their formats and units, provenance, what must not be modified, and which outputs are derived.
+3. Code and environment: how to set up and run the analyses, the interpreter or environment to use, test or check commands, seeds and thread settings.
+4. Conventions: naming, units, rounding, statistical reporting, figure style, citation style, file layout for results.
+5. Deliverables: what the project must produce, where each goes, and how it is checked.
+
+Keep facts you can verify from the files; mark assumptions. Preserve useful content of an existing AGENTS.md and remove what is stale. Include any rules in .cursor/rules/, .cursorrules or .github/copilot-instructions.md by reference.
+
+$ARGUMENTS

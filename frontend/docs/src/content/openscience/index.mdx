@@ -1,0 +1,80 @@
+---
+title: "OpenScience"
+description: "A workbench for literature, data, code, experiments, and scientific writing."
+---
+
+OpenScience helps you work through a research question in one project. Ask it to compare papers, analyze a dataset, write and run code, or prepare a report with the evidence behind its conclusions. Review its work in the desktop app, browser workspace, or terminal.
+
+Choose **Ace** for managed models and research search, connect **your own provider account or API key**, or run a **local model**. You can change model access without starting a new project.
+
+<Columns cols={2}>
+  <Card title="Start your first project" href="/openscience/quickstart">
+    Install OpenScience, choose model access, and produce your first result.
+  </Card>
+  <Card title="Understand pricing" href="/openscience/pricing">
+    Compare Ace, your own provider access, and local models.
+  </Card>
+</Columns>
+
+## Start with a question
+
+A useful first request names the input, the output, and any limits:
+
+```text
+Analyze data/measurements.csv. Check missing values and outliers, compare
+the treatment groups, and save a plot and a short methods note in results/.
+Ask me before dropping observations or running a paid external service.
+```
+
+OpenScience can inspect the files, suggest a method, run the analysis, and save the outputs. Read the methods and check the results before using them in a publication or a consequential decision.
+
+## Choose how to use it
+
+| Interface | Start here |
+| --- | --- |
+| Desktop app | [Download for macOS, Windows, or Linux](https://openscience.sh/download). |
+| Browser workspace | Install the CLI, then run `openscience` in your project folder. |
+| Terminal | Run `openscience run "your request"` for a single turn. |
+
+```bash
+npm install -g @synsci/openscience
+openscience
+```
+
+The workbench is open source under [Apache-2.0](https://github.com/synthetic-sciences/openscience/blob/main/LICENSE). Model usage and connected services have their own costs; see [Pricing](/openscience/pricing).
+
+## Explore the workbench
+
+Browse by [capability](/openscience/capabilities), [input type](/openscience/source-types), or a complete [workflow example](/openscience/workflow-examples). The **Explore tools** tab lists built-in operations, scientific software, databases, and integrations. The **Skills** tab describes every bundled procedure and links to its usage instructions.
+
+| Start with | Explore |
+| --- | --- |
+| A research question | [Literature reviews](/openscience/literature-review), [search](/openscience/research-search), and [evidence extraction](/openscience/documents). |
+| A dataset | [Tables](/openscience/tables), [Python and R](/openscience/python-r), [statistics](/openscience/statistics), and [machine learning](/openscience/machine-learning). |
+| Scientific files | [Genomics](/openscience/genomics), [molecular research](/openscience/molecular-research), and [scientific viewers](/openscience/scientific-viewers). |
+| A result to communicate | [Figures](/openscience/figures), [writing](/openscience/writing), and [saved Results](/openscience/results). |
+| A larger investigation | [Planning](/openscience/planning), [compute jobs](/openscience/jobs), and [handoffs](/openscience/context). |
+| An integration | [SDK and local API](/openscience/api), [MCP](/openscience/connectors), and [custom tools](/openscience/custom-tools). |
+
+## Find your next step
+
+<Columns cols={2}>
+  <Card title="The workspace" href="/openscience/workspace">
+    Work with projects, conversations, files, and scientific previews.
+  </Card>
+  <Card title="Models and providers" href="/openscience/models">
+    Select Ace, connect your own keys, or choose a provider sign-in.
+  </Card>
+  <Card title="Local models" href="/openscience/local-models">
+    Connect Ollama, LM Studio, or another compatible endpoint.
+  </Card>
+  <Card title="Research skills" href="/openscience/skills">
+    Use the bundled library and add your own research procedures.
+  </Card>
+</Columns>
+
+## Get help and contribute
+
+For a reproducible bug, [open an issue](https://github.com/synthetic-sciences/openscience/issues) with your version, operating system, and steps to reproduce it. Check [release notes](https://github.com/synthetic-sciences/openscience/releases) when a guide differs from your installed version.
+
+The [contributor guide](https://github.com/synthetic-sciences/openscience/blob/main/CONTRIBUTING.md) covers development setup and pull requests.

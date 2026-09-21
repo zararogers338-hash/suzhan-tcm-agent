@@ -1,0 +1,118 @@
+---
+title: "CLI reference"
+description: "Commands for setup, research, models, accounts, sessions, and extensions."
+---
+
+Run `openscience --help` or `openscience <command> --help` for the options supported by your installed version. This reference covers the public workflows described in these guides.
+
+## Install and launch
+
+| Command | Purpose |
+| --- | --- |
+| `openscience [project]` | Open the browser workspace in a folder. |
+| `openscience web [project]` | Explicit workspace command. |
+| `openscience init` | Interactive setup; alias `onboard`. |
+| `openscience doctor` | Check configuration and missing setup. |
+| `openscience --version` | Print the installed version. |
+| `openscience --help` | Show available commands. |
+
+`web` and `serve` accept `--port <number>`. Use the URL printed by the command.
+
+## Run and resume
+
+| Command | Purpose |
+| --- | --- |
+| `openscience run "request"` | Run one terminal turn. |
+| `openscience run --continue "request"` | Continue the latest session. |
+| `openscience run --session <id> "request"` | Continue a specific session. |
+| `openscience session list` | List sessions; supports `-n` and `--format json`. |
+| `openscience export <id>` | Write a session export to stdout. |
+| `openscience import <file>` | Import a session export. |
+| `openscience stats` | Show local usage statistics. |
+
+Important `run` options: `--model`, `--agent`, `--effort`, `--variant`, `--file`, `--title`, `--command`, `--format json`, `--bare`, `--attach`, `--deny-prompts`, and `--auto-approve`.
+
+See [Sessions](/openscience/sessions) for meanings and [Automation](/openscience/automation) for JSON events and exit codes.
+
+## Provider access
+
+| Command | Purpose |
+| --- | --- |
+| `openscience keys add` | Connect a provider key or supported sign-in. |
+| `openscience keys signin` | Connect supported ChatGPT access. |
+| `openscience keys list` | Show connected providers. |
+| `openscience keys rm` | Remove a saved provider credential. |
+| `openscience connect codex` | Connect supported ChatGPT access. |
+| `openscience disconnect codex` | Disconnect that sign-in. |
+| `openscience model [provider]` | List models; alias `models`. |
+| `openscience model --flat` | Print one provider/model identifier per line. |
+| `openscience model --verbose` | Include model metadata. |
+| `openscience model --refresh` | Refresh the model catalog. |
+
+`auth` is an alias for `keys`. See [Models](/openscience/models).
+
+## Local models
+
+| Command | Purpose |
+| --- | --- |
+| `openscience local add` | Discover and add a model endpoint. |
+| `openscience local list` | List configured local providers. |
+| `openscience local remove <id>` | Remove a provider configuration. |
+
+`local add` accepts `--url`, `--id`, `--model`, `--key`, `--context`, `--project`, and `--default`. See [Local models](/openscience/local-models).
+
+## Ace and account
+
+| Command | Purpose |
+| --- | --- |
+| `openscience login` | Sign in for Ace and account connections. |
+| `openscience login --no-browser` | Print browser sign-in instructions. |
+| `openscience logout` | Sign this device out. |
+| `openscience status` | Show account, model access, and Wallet; alias `whoami`. |
+| `openscience sync` | Refresh shared workspace connections. |
+| `openscience devices` | Show this device's sign-in. |
+| `openscience wallet show` | Show purchased Wallet balance and access. |
+| `openscience wallet topup` | Open billing to review a Wallet payment. |
+
+`billing` is an alias for `wallet`. See [Ace](/openscience/ace) and [Pricing](/openscience/pricing).
+
+## Skills and agents
+
+| Command | Purpose |
+| --- | --- |
+| `openscience skill list --all` | List skills including the bundled library. |
+| `openscience skill show <target>` | Inspect an installed namespace or skill. |
+| `openscience skill add <url>` | Install skills from a public Git repository. |
+| `openscience skill new <name>` | Create a user skill. |
+| `openscience skill edit <name>` | Edit a user skill. |
+| `openscience skill validate <target>` | Check a skill; `--strict` also fails on warnings. |
+| `openscience skill set-entries <namespace> <entries>` | Choose comma-separated picker entry names. |
+| `openscience skill remove <target>` | Remove a skill or namespace. |
+| `openscience agent create` | Create a custom agent. |
+| `openscience agent list` | Inspect installed agent profiles. |
+
+## Connections and integration
+
+| Command | Purpose |
+| --- | --- |
+| `openscience tools add` / `tools list` | Configure or inspect external tool connections. |
+| `openscience tools auth <name>` | Authorize a connection. |
+| `openscience tools logout <name>` | Remove its authorization. |
+| `openscience tools remove <name>` | Remove its configuration. |
+| `openscience serve` | Start a local server without opening a browser. |
+| `openscience acp --cwd <path>` | Connect through an ACP-compatible editor. |
+| `openscience pr <number>` | Check out a GitHub PR branch and launch OpenScience. |
+
+`mcp` is an alias for `tools`. The `pr` command changes the current checkout; save your work first. It does not create or merge a PR.
+
+## Maintenance
+
+| Command | Purpose |
+| --- | --- |
+| `openscience upgrade [version]` | Update the CLI. |
+| `openscience uninstall --dry-run` | Preview removal. |
+| `openscience uninstall` | Uninstall while keeping work and settings by default. |
+| `openscience debug paths` | Show resolved application directories. |
+| `openscience completion` | Generate the completion script for the detected shell. |
+
+For installation problems, see [Troubleshooting](/openscience/troubleshooting). For other advanced commands, consult the installed command's help.

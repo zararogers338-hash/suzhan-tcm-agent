@@ -1,0 +1,179 @@
+import { describe, expect, test } from "bun:test"
+import { SessionProcessor } from "../../src/session/processor"
+
+const tool = (name: string, input: unknown, status = "completed"): any => ({
+  type: "tool",
+  tool: name,
+  callID: "c",
+  state: { status, input },
+})
+const reasoning = (): any => ({ type: "reasoning", text: "thinking..." })
+const text = (): any => ({ type: "text", text: "hi" })
+const message = (id: string, parentID: string, parts: any[]): any => ({
+  info: { id, role: "assistant", parentID },
+  parts,
+})
+const user = (id: string, epoch: string): any => ({
+  info: { id, role: "user", internal: id === epoch ? { type: "prompt", epoch } : { type: "continuation", epoch } },
+  parts: id === epoch ? [{ type: "text", text: "external prompt" }] : [],
+})
+
+describe("SessionProcessor.isDoomLoop", () => {
+  test("fires when the last 3 TOOL calls are identical, even with reasoning/text between them", () => {
+    // A reasoning model interleaves a reasoning part before every tool call —
+    // the old last-3-raw-parts check never saw 3 consecutive tool parts.
+    const parts = [
+      reasoning(),
+      tool("bash", { cmd: "ls" }),
+      reasoning(),
+      tool("bash", { cmd: "ls" }),
+      text(),
+      reasoning(),
+      tool("bash", { cmd: "ls" }),
+    ]
+    expect(SessionProcessor.isDoomLoop(parts, "bash", { cmd: "ls" })).toBe(true)
+  })
+
+  test("does not fire when the inputs differ", () => {
+    const parts = [tool("bash", { cmd: "a" }), tool("bash", { cmd: "b" }), tool("bash", { cmd: "c" })]
+    expect(SessionProcessor.isDoomLoop(parts, "bash", { cmd: "c" })).toBe(false)
+  })
+
+  test("does not fire below the threshold of 3 tool calls", () => {
+    const parts = [reasoning(), tool("bash", { cmd: "ls" }), reasoning(), tool("bash", { cmd: "ls" })]
+    expect(SessionProcessor.isDoomLoop(parts, "bash", { cmd: "ls" })).toBe(false)
+  })
+
+  test("does not fire when a different tool breaks the streak", () => {
+    const parts = [tool("bash", { cmd: "ls" }), tool("read", { path: "x" }), tool("bash", { cmd: "ls" })]
+    expect(SessionProcessor.isDoomLoop(parts, "bash", { cmd: "ls" })).toBe(false)
+  })
+
+  test("ignores a pending tool call (not yet a confirmed repeat)", () => {
+    const parts = [tool("bash", { cmd: "ls" }), tool("bash", { cmd: "ls" }), tool("bash", { cmd: "ls" }, "pending")]
+    expect(SessionProcessor.isDoomLoop(parts, "bash", { cmd: "ls" })).toBe(false)
+  })
+
+  test("sees repeated calls spread across assistant steps for one user request", () => {
+    const messages = [
+      message("assistant-1", "user-1", [reasoning(), tool("invalid", { tool: "bash", error: "incomplete" })]),
+      message("assistant-2", "user-1", [text(), tool("invalid", { tool: "bash", error: "incomplete" })]),
+      message("assistant-other", "user-2", [tool("invalid", { tool: "bash", error: "incomplete" })]),
+    ]
+    const parts = SessionProcessor.turnParts(messages, "user-1")
+    expect(SessionProcessor.isDoomLoop(parts, "invalid", { tool: "bash", error: "incomplete" }, 2)).toBe(true)
+    expect(parts).toHaveLength(4)
+  })
+
+  test("keys malformed calls by canonical tool and failure class instead of provider error text", () => {
+    const parts = [
+      tool("invalid", { tool: "BASH", failure: "invalid_input", error: "raw validator payload one" }),
+      tool("invalid", { tool: "bash", failure: "invalid_input", error: "different raw validator payload" }),
+    ]
+    expect(
+      SessionProcessor.isMalformedLoop(parts, {
+        tool: "bash",
+        failure: "invalid_input",
+        error: "third provider rendering",
+      }),
+    ).toBe(true)
+    expect(SessionProcessor.isMalformedLoop(parts, { tool: "bash", failure: "unknown_tool" })).toBe(false)
+    expect(SessionProcessor.isMalformedLoop(parts, { tool: "read", failure: "invalid_input" })).toBe(false)
+  })
+
+  test("restores malformed-call accounting across continuation and compaction messages in one durable epoch", () => {
+    const messages = [
+      user("epoch-1", "epoch-1"),
+      message("assistant-1", "epoch-1", [tool("invalid", { tool: "bash", failure: "invalid_input" })]),
+      user("continuation-1", "epoch-1"),
+      message("assistant-2", "continuation-1", [tool("invalid", { tool: "bash", failure: "invalid_input" })]),
+    ]
+    const parts = SessionProcessor.turnParts(messages, "continuation-1")
+    expect(parts).toHaveLength(2)
+    expect(SessionProcessor.isMalformedLoop(parts, { tool: "bash", failure: "invalid_input" })).toBe(true)
+  })
+
+  test("orders a newest-first durable transcript before evaluating the malformed-call breaker", () => {
+    const messages = [
+      message("assistant-2", "continuation-1", [tool("invalid", { tool: "bash", failure: "invalid_input" })]),
+      user("continuation-1", "epoch-1"),
+      message("assistant-1", "epoch-1", [tool("invalid", { tool: "bash", failure: "invalid_input" })]),
+      user("epoch-1", "epoch-1"),
+    ]
+    const parts = SessionProcessor.turnParts(messages, "continuation-1")
+    expect(parts).toHaveLength(2)
+    expect(SessionProcessor.isMalformedLoop(parts, { tool: "bash", failure: "invalid_input" })).toBe(true)
+  })
+
+  test("does not carry malformed-call accounting into a fresh external prompt epoch", () => {
+    const messages = [
+      user("epoch-1", "epoch-1"),
+      message("assistant-1", "epoch-1", [tool("invalid", { tool: "bash", failure: "invalid_input" })]),
+      user("epoch-2", "epoch-2"),
+      message("assistant-2", "epoch-2", [tool("invalid", { tool: "bash", failure: "invalid_input" })]),
+    ]
+    const parts = SessionProcessor.turnParts(messages, "epoch-2")
+    expect(parts).toHaveLength(1)
+    expect(SessionProcessor.isMalformedLoop(parts, { tool: "bash", failure: "invalid_input" })).toBe(false)
+  })
+})
+
+describe("SessionProcessor.toolErrorLoopAction", () => {
+  const errored = (name: string, error: string): any => ({
+    type: "tool",
+    tool: name,
+    callID: "c",
+    state: { status: "error", input: {}, error },
+  })
+
+  test("guides on the second same-cause error and stops on the third, ignoring reworded ids", () => {
+    const parts = [
+      errored("task", "No child session ses_alpha_code exists for this session. No child was started."),
+      errored("task", "No child session ses_ exists for this session. No child was started."),
+    ]
+    expect(SessionProcessor.toolErrorLoopCount(parts, "task")).toBe(2)
+    expect(SessionProcessor.toolErrorLoopAction(parts, "task")).toBe("guide")
+    parts.push(errored("task", "No child session ses_beta_eval exists for this session. No child was started."))
+    expect(SessionProcessor.toolErrorLoopAction(parts, "task")).toBe("stop")
+  })
+
+  test("a completed call of the same tool resets the streak", () => {
+    const parts = [
+      errored("task", "No child session ses_a exists for this session."),
+      errored("task", "No child session ses_b exists for this session."),
+      tool("task", { description: "worked" }),
+      errored("task", "No child session ses_c exists for this session."),
+    ]
+    expect(SessionProcessor.toolErrorLoopCount(parts, "task")).toBe(1)
+    expect(SessionProcessor.toolErrorLoopAction(parts, "task")).toBe("none")
+  })
+
+  test("persisted recovery guidance does not change the original failure identity", () => {
+    const cause = (id: string) => `No child session ${id} exists for this session. No child was started.`
+    const parts = [
+      errored("task", cause("ses_a")),
+      errored("task", `${cause("ses_b")}\n\n${SessionProcessor.toolErrorGuidance("task")}`),
+      errored("task", cause("ses_c")),
+    ]
+    expect(SessionProcessor.toolErrorLoopCount(parts, "task")).toBe(3)
+    expect(SessionProcessor.toolErrorLoopAction(parts, "task")).toBe("stop")
+    parts.push(errored("task", "Delegation is not permitted for child sessions."))
+    expect(SessionProcessor.toolErrorLoopAction(parts, "task")).toBe("none")
+  })
+
+  test("a different failure cause or a different tool does not count", () => {
+    const parts = [
+      errored("task", "No child session ses_a exists for this session."),
+      errored("bash", "No child session ses_a exists for this session."),
+      errored("task", "Delegation is not permitted for child sessions."),
+    ]
+    expect(SessionProcessor.toolErrorLoopCount(parts, "task")).toBe(1)
+    expect(SessionProcessor.toolErrorLoopAction(parts, "task")).toBe("none")
+    expect(SessionProcessor.toolErrorLoopAction(parts, "bash")).toBe("none")
+  })
+
+  test("the guidance and stop messages name the tool and the recovery", () => {
+    expect(SessionProcessor.toolErrorGuidance("task")).toContain("repeated task failures")
+    expect(SessionProcessor.toolErrorStopMessage("task")).toContain("three consecutive task failures")
+  })
+})

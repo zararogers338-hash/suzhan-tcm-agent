@@ -1,0 +1,541 @@
+import { useMarked } from "../context/marked"
+import { useI18n } from "../context/i18n"
+import DOMPurify from "dompurify"
+import morphdom from "morphdom"
+import { checksum } from "@synsci/util/encode"
+import { localFilePath } from "@synsci/util/path"
+import {
+  ComponentProps,
+  ParentProps,
+  createContext,
+  createEffect,
+  createResource,
+  createSignal,
+  onCleanup,
+  splitProps,
+  useContext,
+} from "solid-js"
+import { isServer } from "solid-js/web"
+
+type Entry = {
+  hash: string
+  html: string
+}
+
+const max = 200
+const cache = new Map<string, Entry>()
+
+if (typeof window !== "undefined" && DOMPurify.isSupported) {
+  // Also cover images, raw HTML and native Markdown parsers. Normalize only
+  // validated local URLs before URI sanitization; never allow arbitrary schemes.
+  DOMPurify.addHook("uponSanitizeAttribute", (node, attribute) => {
+    if (!(
+      (node.nodeName === "A" && attribute.attrName === "href") ||
+      (node.nodeName === "IMG" && attribute.attrName === "src")
+    ))
+      return
+    const path = localFilePath(attribute.attrValue)
+    if (path) attribute.attrValue = path
+  })
+  DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
+    if (!(node instanceof HTMLAnchorElement)) return
+    const target = node.getAttribute("target")
+    if (!target) return
+    if (target !== "_blank") {
+      node.removeAttribute("target")
+      return
+    }
+
+    const rel = node.getAttribute("rel") ?? ""
+    const set = new Set(rel.split(/\s+/).filter(Boolean))
+    set.add("noopener")
+    set.add("noreferrer")
+    node.setAttribute("rel", Array.from(set).join(" "))
+  })
+}
+
+const config = {
+  USE_PROFILES: { html: true, mathMl: true },
+  SANITIZE_NAMED_PROPS: true,
+  FORBID_TAGS: ["style"],
+  FORBID_CONTENTS: ["style", "script"],
+  FORBID_ATTR: ["data-file-link", "data-file-path"],
+  ADD_TAGS: ["semantics", "annotation", "annotation-xml"],
+  ADD_ATTR: ["encoding", "target"],
+}
+
+const iconPaths = {
+  copy: '<path d="M6.2513 6.24935V2.91602H17.0846V13.7493H13.7513M13.7513 6.24935V17.0827H2.91797V6.24935H13.7513Z" stroke="currentColor" stroke-linecap="round"/>',
+  check: '<path d="M5 11.9657L8.37838 14.7529L15 5.83398" stroke="currentColor" stroke-linecap="square"/>',
+}
+
+export function sanitize(html: string) {
+  if (!DOMPurify.isSupported) return ""
+  return DOMPurify.sanitize(html, config)
+}
+
+export function markdownFallback(markdown: string) {
+  const escaped = markdown.replace(/[&<>"']/g, (value) => {
+    if (value === "&") return "&amp;"
+    if (value === "<") return "&lt;"
+    if (value === ">") return "&gt;"
+    if (value === '"') return "&quot;"
+    return "&#39;"
+  })
+  return `<p data-markdown-fallback="true">${escaped.replace(/\r?\n/g, "<br>")}</p>`
+}
+
+type Resolve = (src: string) => string
+type ResolveFile = (href: string) => string | undefined
+type OpenFile = (path: string) => void
+
+const assets = createContext<{
+  resolveImage: Resolve
+  resolveFile?: ResolveFile
+  resolveFileReceipt?: ResolveFile
+  openFile?: OpenFile
+}>()
+const writtenFiles = createContext<() => readonly string[]>()
+
+/**
+ * The host-path resolvers file links run through, for surfaces that list
+ * recorded receipts outside Markdown. Absent without a `MarkdownImages`
+ * ancestor, in which case callers keep their own conservative rules.
+ */
+export function useMarkdownFileResolvers() {
+  const shared = useContext(assets)
+  return {
+    resolveFile: shared?.resolveFile,
+    resolveFileReceipt: shared?.resolveFileReceipt,
+  }
+}
+
+/** Scope bare chat filenames to this turn's exact completed write receipts. */
+export function MarkdownFileScope(props: ParentProps<{ paths: readonly string[] }>) {
+  return <writtenFiles.Provider value={() => props.paths}>{props.children}</writtenFiles.Provider>
+}
+
+export function resolveInlineFileTarget(
+  reference: string,
+  paths: readonly string[],
+  resolve: ResolveFile,
+  resolveReceipt: ResolveFile = resolve,
+) {
+  if (/[\\/]/.test(reference)) return resolve(reference)
+  const matches = [
+    ...new Set(
+      paths.filter((path) => {
+        if (!/^(?:\/|[A-Za-z]:[\\/])/.test(path)) return false
+        const name = path.replaceAll("\\", "/").split("/").at(-1)
+        return /^[A-Za-z]:[\\/]/.test(path) ? name?.toLowerCase() === reference.toLowerCase() : name === reference
+      }),
+    ),
+  ]
+  if (matches.length === 0) return resolve(reference)
+  if (matches.length !== 1) return undefined
+  // Only an exact, unique completed receipt reaches this separate path.
+  // It selects a viewer target, never grants server-side read authority.
+  return resolveReceipt(matches[0])
+}
+
+/**
+ * Provide default local-asset behavior for every Markdown rendered below.
+ * Images use the authenticated raw-file endpoint; file anchors use the
+ * contextual viewer. Per-Markdown resolvers still win.
+ */
+export function MarkdownImages(
+  props: ParentProps<{
+    resolve: Resolve
+    resolveFile?: ResolveFile
+    resolveFileReceipt?: ResolveFile
+    openFile?: OpenFile
+  }>,
+) {
+  return (
+    <assets.Provider
+      value={{
+        resolveImage: props.resolve,
+        resolveFile: props.resolveFile,
+        resolveFileReceipt: props.resolveFileReceipt,
+        openFile: props.openFile,
+      }}
+    >
+      {props.children}
+    </assets.Provider>
+  )
+}
+
+/**
+ * Rewrite <img> references in place. Runs on already-sanitized markup right
+ * before it reaches the live DOM, so DOMPurify stays fully in charge of what
+ * renders — only the src attribute value changes.
+ */
+export function resolveImages(root: ParentNode, resolve: Resolve) {
+  root.querySelectorAll("img").forEach((img) => {
+    const src = img.getAttribute("src")
+    if (!src) return
+    const next = resolve(src)
+    if (next !== src) img.setAttribute("src", next)
+  })
+}
+
+/** Mark local Markdown anchors for the authenticated in-app file viewer. */
+export function resolveFileLinks(root: ParentNode, resolve: ResolveFile) {
+  root.querySelectorAll("a").forEach((anchor) => {
+    anchor.removeAttribute("data-file-link")
+    anchor.removeAttribute("data-file-path")
+    const href = anchor.getAttribute("href")
+    if (!href) return
+    const path = resolve(href)
+    if (!path) return
+    anchor.setAttribute("data-file-link", "true")
+    anchor.setAttribute("data-file-path", path)
+    anchor.removeAttribute("target")
+    anchor.removeAttribute("rel")
+    anchor.classList.remove("external-link")
+  })
+}
+
+const inlineFilePath =
+  /\.(md|mdx|json|jsonl|txt|py|ipynb|ts|tsx|js|jsx|csv|tsv|ya?ml|toml|tex|bib|pdf|png|jpe?g|gif|svg|sh|r|rmd|parquet|h5|hdf5|npy|npz|pkl|log|cfg|ini|xml|html?|css|sql|go|rs|java|db|sqlite)$/i
+
+/** Link only host-resolved paths. A recorded tool output may target session
+ * scratch or a connected folder; the viewer still authorizes every read.
+ * Unresolved paths stay plain text. */
+export function resolveInlineFileLinks(root: ParentNode, resolve: ResolveFile) {
+  root.querySelectorAll("code").forEach((element) => {
+    const target = element as HTMLElement
+    if (target.hasAttribute("data-file-link")) {
+      target.removeAttribute("role")
+      target.removeAttribute("tabindex")
+      target.removeAttribute("title")
+    }
+    target.removeAttribute("data-file-link")
+    target.removeAttribute("data-file-path")
+    if (element.closest("pre, a")) return
+    const text = (element.textContent ?? "").trim()
+    const candidate =
+      text.length > 2 && text.length < 260 && !/\s/.test(text) && inlineFilePath.test(text) ? resolve(text) : undefined
+    if (!candidate) return
+    target.setAttribute("data-file-link", "true")
+    target.setAttribute("data-file-path", candidate)
+    target.setAttribute("role", "link")
+    target.tabIndex = 0
+    target.title = candidate
+  })
+}
+
+/** Open a marked local anchor and report whether this click was handled. */
+export function openFileLink(root: ParentNode, event: MouseEvent | KeyboardEvent, open: OpenFile): boolean {
+  const target = event.target
+  if (!(target instanceof Element)) return false
+  const anchor = target.closest('a[data-file-link="true"], code[data-file-link="true"]')
+  if (!anchor || !root.contains(anchor)) return false
+  // Native anchors already translate Enter into a click. Inline code links
+  // need the same keyboard action, without a second synthetic click.
+  if (
+    event.type === "keydown" &&
+    (!(event instanceof KeyboardEvent) || event.key !== "Enter" || anchor.tagName !== "CODE")
+  )
+    return false
+  const path = anchor.getAttribute("data-file-path")
+  if (!path) return false
+  event.preventDefault()
+  event.stopPropagation()
+  open(path)
+  return true
+}
+
+type CopyLabels = {
+  copy: string
+  copied: string
+}
+
+function createIcon(path: string, slot: string) {
+  const icon = document.createElement("div")
+  icon.setAttribute("data-component", "icon")
+  icon.setAttribute("data-size", "small")
+  icon.setAttribute("data-slot", slot)
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+  svg.setAttribute("data-slot", "icon-svg")
+  svg.setAttribute("fill", "none")
+  svg.setAttribute("viewBox", "0 0 20 20")
+  svg.setAttribute("aria-hidden", "true")
+  svg.innerHTML = path
+  icon.appendChild(svg)
+  return icon
+}
+
+function createCopyButton(labels: CopyLabels) {
+  const button = document.createElement("button")
+  button.type = "button"
+  button.setAttribute("data-component", "icon-button")
+  button.setAttribute("data-variant", "secondary")
+  button.setAttribute("data-size", "normal")
+  button.setAttribute("data-slot", "markdown-copy-button")
+  button.setAttribute("aria-label", labels.copy)
+  button.setAttribute("title", labels.copy)
+  button.appendChild(createIcon(iconPaths.copy, "copy-icon"))
+  button.appendChild(createIcon(iconPaths.check, "check-icon"))
+  return button
+}
+
+function setCopyState(button: HTMLButtonElement, labels: CopyLabels, copied: boolean) {
+  if (copied) {
+    button.setAttribute("data-copied", "true")
+    button.setAttribute("aria-label", labels.copied)
+    button.setAttribute("title", labels.copied)
+    return
+  }
+  button.removeAttribute("data-copied")
+  button.setAttribute("aria-label", labels.copy)
+  button.setAttribute("title", labels.copy)
+}
+
+/** Give every bare code block its frame and copy button. This runs on the
+ * parsed HTML before reconciliation, so the live DOM and the next render share
+ * one structure: when only the live side carried the frame, morphdom could not
+ * match a framed block to a bare one and, with the frame protected from
+ * discard, every streamed update left one more stale copy behind. */
+export function wrapCodeBlocks(root: ParentNode, labels: CopyLabels) {
+  for (const block of Array.from(root.querySelectorAll("pre"))) {
+    const parent = block.parentElement
+    if (!parent || parent.getAttribute("data-component") === "markdown-code") continue
+    const wrapper = document.createElement("div")
+    wrapper.setAttribute("data-component", "markdown-code")
+    parent.replaceChild(wrapper, block)
+    wrapper.appendChild(block)
+    wrapper.appendChild(createCopyButton(labels))
+  }
+}
+
+function setupCodeCopy(root: HTMLDivElement, labels: CopyLabels) {
+  const timeouts = new Map<HTMLButtonElement, ReturnType<typeof setTimeout>>()
+
+  const updateLabel = (button: HTMLButtonElement) => {
+    const copied = button.getAttribute("data-copied") === "true"
+    setCopyState(button, labels, copied)
+  }
+
+  const handleClick = async (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const button = target.closest('[data-slot="markdown-copy-button"]')
+    if (!(button instanceof HTMLButtonElement)) return
+    const code = button.closest('[data-component="markdown-code"]')?.querySelector("code")
+    const content = code?.textContent ?? ""
+    if (!content) return
+    const clipboard = navigator?.clipboard
+    if (!clipboard) return
+    await clipboard.writeText(content)
+    setCopyState(button, labels, true)
+    const existing = timeouts.get(button)
+    if (existing) clearTimeout(existing)
+    const timeout = setTimeout(() => setCopyState(button, labels, false), 2000)
+    timeouts.set(button, timeout)
+  }
+
+  wrapCodeBlocks(root, labels)
+
+  const buttons = Array.from(root.querySelectorAll('[data-slot="markdown-copy-button"]'))
+  for (const button of buttons) {
+    if (button instanceof HTMLButtonElement) updateLabel(button)
+  }
+
+  root.addEventListener("click", handleClick)
+
+  return () => {
+    root.removeEventListener("click", handleClick)
+    for (const timeout of timeouts.values()) {
+      clearTimeout(timeout)
+    }
+  }
+}
+
+/** Bring the live container to the parsed HTML. Code blocks are framed on
+ * the parsed side first, and a framed block updates only its `pre`, so the
+ * copy button and its state survive a streamed re-render. */
+export function reconcileMarkdown(container: HTMLElement, next: HTMLElement, labels: CopyLabels) {
+  wrapCodeBlocks(next, labels)
+  morphdom(container, next, {
+    childrenOnly: true,
+    onBeforeElUpdated: (fromEl, toEl) => {
+      if (fromEl.isEqualNode(toEl)) return false
+      if (
+        fromEl.getAttribute("data-component") === "markdown-code" &&
+        toEl.getAttribute("data-component") === "markdown-code"
+      ) {
+        const fromPre = fromEl.querySelector("pre")
+        const toPre = toEl.querySelector("pre")
+        if (fromPre && toPre && !fromPre.isEqualNode(toPre)) morphdom(fromPre, toPre)
+        return false
+      }
+      return true
+    },
+  })
+}
+
+function touch(key: string, value: Entry) {
+  cache.delete(key)
+  cache.set(key, value)
+
+  if (cache.size <= max) return
+
+  const first = cache.keys().next().value
+  if (!first) return
+  cache.delete(first)
+}
+
+export function Markdown(
+  props: ComponentProps<"div"> & {
+    text: string
+    cacheKey?: string
+    class?: string
+    classList?: Record<string, boolean>
+    resolveImage?: Resolve
+    resolveFile?: ResolveFile
+    onOpenFile?: OpenFile
+  },
+) {
+  const [local, others] = splitProps(props, [
+    "text",
+    "cacheKey",
+    "class",
+    "classList",
+    "resolveImage",
+    "resolveFile",
+    "onOpenFile",
+  ])
+  const shared = useContext(assets)
+  const paths = useContext(writtenFiles)
+  const marked = useMarked()
+  const i18n = useI18n()
+  const [root, setRoot] = createSignal<HTMLDivElement>()
+  const [html] = createResource(
+    () => local.text,
+    async (markdown) => {
+      if (isServer) return ""
+
+      const hash = checksum(markdown)
+      const key = local.cacheKey ?? hash
+
+      if (key && hash) {
+        const cached = cache.get(key)
+        if (cached && cached.hash === hash) {
+          touch(key, cached)
+          return cached.html
+        }
+      }
+
+      const safe = await marked.parse(markdown).then(
+        (next) => sanitize(next),
+        () => markdownFallback(markdown),
+      )
+      if (key && hash) touch(key, { hash, html: safe })
+      return safe
+    },
+    { initialValue: "" },
+  )
+
+  let copySetupTimer: ReturnType<typeof setTimeout> | undefined
+  let copyCleanup: (() => void) | undefined
+  let fileCleanup: (() => void) | undefined
+
+  createEffect(() => {
+    const container = root()
+    const content = html()
+    if (!container) return
+    if (isServer) return
+
+    if (!content) {
+      if (fileCleanup) {
+        fileCleanup()
+        fileCleanup = undefined
+      }
+      container.innerHTML = ""
+      return
+    }
+
+    const temp = document.createElement("div")
+    temp.innerHTML = content
+
+    // Only assistant prose opts into a keyboard-scrollable table frame. Build
+    // it before reconciliation so updates preserve native table semantics and
+    // do not fight the Markdown DOM diff or affect standalone file previews.
+    if (container.dataset.slot === "assistant-prose") {
+      for (const table of temp.querySelectorAll("table")) {
+        const frame = document.createElement("div")
+        frame.setAttribute("data-component", "markdown-table")
+        frame.setAttribute("data-scrollable", "true")
+        frame.setAttribute("role", "region")
+        frame.setAttribute("aria-label", table.caption?.textContent?.trim() || "Response table")
+        frame.tabIndex = 0
+        table.replaceWith(frame)
+        frame.append(table)
+      }
+    }
+
+    const resolve = local.resolveImage ?? shared?.resolveImage
+    if (resolve) resolveImages(temp, resolve)
+    const resolveFile = local.resolveFile ?? shared?.resolveFile
+    const openFile = local.onOpenFile ?? shared?.openFile
+    if (resolveFile && openFile) {
+      resolveFileLinks(temp, resolveFile)
+      resolveInlineFileLinks(temp, (reference) =>
+        resolveInlineFileTarget(
+          reference,
+          local.resolveFile ? [] : (paths?.() ?? []),
+          resolveFile,
+          shared?.resolveFileReceipt,
+        ),
+      )
+    }
+
+    reconcileMarkdown(container, temp, {
+      copy: i18n.t("ui.message.copy"),
+      copied: i18n.t("ui.message.copied"),
+    })
+
+    if (fileCleanup) {
+      fileCleanup()
+      fileCleanup = undefined
+    }
+    if (resolveFile && openFile) {
+      const handler = (event: MouseEvent) => openFileLink(container, event, openFile)
+      const keyboard = (event: KeyboardEvent) => openFileLink(container, event, openFile)
+      container.addEventListener("click", handler)
+      container.addEventListener("keydown", keyboard)
+      fileCleanup = () => {
+        container.removeEventListener("click", handler)
+        container.removeEventListener("keydown", keyboard)
+      }
+    }
+
+    if (copySetupTimer) clearTimeout(copySetupTimer)
+    copySetupTimer = setTimeout(() => {
+      if (copyCleanup) copyCleanup()
+      copyCleanup = setupCodeCopy(container, {
+        copy: i18n.t("ui.message.copy"),
+        copied: i18n.t("ui.message.copied"),
+      })
+    }, 150)
+  })
+
+  onCleanup(() => {
+    if (copySetupTimer) clearTimeout(copySetupTimer)
+    if (copyCleanup) copyCleanup()
+    if (fileCleanup) fileCleanup()
+  })
+
+  return (
+    <div
+      data-component="markdown"
+      classList={{
+        ...(local.classList ?? {}),
+        [local.class ?? ""]: !!local.class,
+      }}
+      ref={setRoot}
+      {...others}
+    />
+  )
+}

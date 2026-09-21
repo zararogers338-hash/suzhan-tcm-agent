@@ -1,0 +1,128 @@
+{
+  "name": "OpenScience",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Start here",
+            "pages": ["index", "quickstart", "capabilities", "source-types", "installation"]
+          },
+          {
+            "group": "Your workspace",
+            "pages": ["workspace", "projects", "sessions", "files", "results"]
+          },
+          {
+            "group": "Models and account",
+            "pages": ["models", "ace", "pricing", "local-models", "custom-providers"]
+          },
+          {
+            "group": "Plan and continue",
+            "pages": ["agents", "planning", "context", "team-workflows"]
+          },
+          {
+            "group": "Personalize and get help",
+            "pages": ["preferences", "keyboard-shortcuts", "troubleshooting", "faq"]
+          }
+        ]
+      },
+      {
+        "tab": "Workflows",
+        "groups": [
+          {
+            "group": "Research and evidence",
+            "pages": ["workflow-examples", "literature-review", "research-search", "database-workflows", "documents"]
+          },
+          {
+            "group": "Analyze and experiment",
+            "pages": [
+              "data-analysis",
+              "code",
+              "statistics",
+              "python-r",
+              "machine-learning",
+              "genomics",
+              "molecular-research",
+              "reproduction",
+              "experiment-tracking"
+            ]
+          },
+          {
+            "group": "Communicate results",
+            "pages": ["figures", "writing", "image-generation"]
+          },
+          {
+            "group": "Run substantial work",
+            "pages": ["compute", "jobs", "remote-compute", "autoresearch"]
+          }
+        ]
+      },
+      {
+        "tab": "Explore tools",
+        "groups": [
+          {
+            "group": "Find a tool",
+            "pages": ["explore-tools", "built-in-tools", "tool-catalog", "scientific-tools"]
+          },
+          {
+            "group": "Data and viewers",
+            "pages": ["databases", "tables", "scientific-viewers"]
+          },
+          {
+            "group": "Connect and extend",
+            "pages": ["connectors", "service-credentials", "custom-tools"]
+          }
+        ]
+      },
+      {
+        "tab": "Skills",
+        "groups": [
+          {
+            "group": "Use skills",
+            "pages": ["skills", "skill-library", "skill-workflows"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Project setup",
+            "pages": ["instructions", "configuration", "slash-commands", "permissions"]
+          },
+          {
+            "group": "CLI and integrations",
+            "pages": ["commands", "automation", "api", "server-hosting", "extensions"]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Download",
+          "href": "https://openscience.sh/download"
+        },
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/synthetic-sciences/openscience"
+        },
+        {
+          "anchor": "Releases",
+          "href": "https://github.com/synthetic-sciences/openscience/releases"
+        },
+        {
+          "anchor": "Report an issue",
+          "href": "https://github.com/synthetic-sciences/openscience/issues"
+        }
+      ]
+    }
+  },
+  "navbar": {
+    "primary": {
+      "label": "Get OpenScience",
+      "href": "https://openscience.sh/download"
+    }
+  }
+}
