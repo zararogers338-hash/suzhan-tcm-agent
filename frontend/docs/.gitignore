@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+.vercel
+*.local
+.DS_Store
+
+/public/llms.txt
+/public/llms-full.txt
+/test-results/
+/playwright-report/

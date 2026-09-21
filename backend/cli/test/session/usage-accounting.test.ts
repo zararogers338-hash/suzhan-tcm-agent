@@ -1,0 +1,220 @@
+import { describe, expect, test } from "bun:test"
+import { Session } from "../../src/session/index"
+import { TokenUsage } from "@synsci/util/token-usage"
+
+const model = (): any => ({
+  cost: {
+    input: 3,
+    output: 15,
+    cache: { read: 0.3, write: 3.75 },
+    experimentalOver200K: { input: 6, output: 22.5, cache: { read: 0.6, write: 7.5 } },
+  },
+  modes: {
+    fast: {
+      cost: {
+        input: 6,
+        output: 30,
+        cache: { read: 0.6, write: 7.5 },
+      },
+    },
+  },
+})
+
+describe("Session.getUsage cost/token accounting", () => {
+  for (const route of [
+    { name: "OpenAI Responses", input: 1_000, metadata: { openai: {} } },
+    { name: "OpenRouter", input: 1_000, metadata: { openrouter: {} } },
+    { name: "Google", input: 1_000, metadata: { google: {} } },
+    { name: "Anthropic", input: 800, metadata: { anthropic: {} } },
+    { name: "Amazon Bedrock", input: 800, metadata: { bedrock: { usage: {} } } },
+  ]) {
+    test(`${route.name} keeps reasoning as an output subset`, () => {
+      const result = Session.getUsage({
+        model: model(),
+        usage: {
+          inputTokens: route.input,
+          outputTokens: 500,
+          reasoningTokens: 100,
+          cachedInputTokens: 200,
+        } as any,
+        metadata: route.metadata as any,
+      })
+
+      expect(result.tokens).toEqual({
+        input: 800,
+        output: 500,
+        reasoning: 100,
+        cache: { read: 200, write: 0 },
+      })
+      expect(TokenUsage.uncached(result.tokens)).toBe(1_300)
+      expect(TokenUsage.total(result.tokens)).toBe(1_500)
+      expect(result.cost).toBeCloseTo((800 * 3 + 500 * 15 + 200 * 0.3) / 1_000_000, 8)
+    })
+  }
+
+  test("the native OpenAI route bills a GPT-5.6+ prompt's uncached remainder as the implicit cache write", () => {
+    const astra = (): any => ({
+      providerID: "openai",
+      api: { id: "gpt-6-astra" },
+      cost: { input: 10, output: 50, cache: { read: 1, write: 12.5 } },
+    })
+    const result = Session.getUsage({
+      model: astra(),
+      usage: { inputTokens: 100_000, outputTokens: 1_000, reasoningTokens: 500, cachedInputTokens: 60_000 } as any,
+      metadata: { openai: {} } as any,
+    })
+    // 60K read from the cache, the other 40K written to it at the write rate.
+    expect(result.tokens).toEqual({
+      input: 0,
+      output: 1_000,
+      reasoning: 500,
+      cache: { read: 60_000, write: 40_000 },
+    })
+    expect(result.cost).toBeCloseTo((60_000 * 1 + 40_000 * 12.5 + 1_000 * 50) / 1_000_000, 8)
+    // Earlier families carry no write premium and keep plain input accounting.
+    const sol55 = Session.getUsage({
+      model: { ...astra(), api: { id: "gpt-5.5" }, cost: { input: 10, output: 50, cache: { read: 1, write: 0 } } },
+      usage: { inputTokens: 100_000, outputTokens: 1_000, cachedInputTokens: 60_000 } as any,
+      metadata: { openai: {} } as any,
+    })
+    expect(sol55.tokens.input).toBe(40_000)
+    expect(sol55.tokens.cache.write).toBe(0)
+    // The same model through OpenRouter reports its cost; the split stays plain.
+    const routed = Session.getUsage({
+      model: { ...astra(), providerID: "openrouter", api: { id: "openai/gpt-6-astra" } },
+      usage: { inputTokens: 100_000, outputTokens: 1_000, cachedInputTokens: 60_000 } as any,
+      metadata: { openrouter: { usage: { cost: 1.23 } } } as any,
+    })
+    expect(routed.tokens.input).toBe(40_000)
+    expect(routed.cost).toBeCloseTo(1.23, 8)
+  })
+
+  test("over-200k tier trips on a mostly-cache-write prompt (cache.write counts toward the threshold)", () => {
+    // 15k fresh input + 190k cache-creation = 205k > 200k → over-200k pricing.
+    const r = Session.getUsage({
+      model: model(),
+      usage: { inputTokens: 15_000, outputTokens: 100, cachedInputTokens: 0 } as any,
+      metadata: { anthropic: { cacheCreationInputTokens: 190_000 } } as any,
+    })
+    // input billed at the over-200k rate (6/M), not the base 3/M.
+    expect(r.cost).toBeCloseTo((15_000 * 6 + 100 * 22.5 + 190_000 * 7.5) / 1_000_000, 6)
+  })
+
+  test("stays on the base tier below 200k", () => {
+    const r = Session.getUsage({
+      model: model(),
+      usage: { inputTokens: 1_000, outputTokens: 100, cachedInputTokens: 0 } as any,
+    })
+    expect(r.cost).toBeCloseTo((1_000 * 3 + 100 * 15) / 1_000_000, 6)
+  })
+
+  test("uses the catalog's exact context threshold instead of the legacy 200k guess", () => {
+    const priced = model()
+    priced.cost.tiers = [{ input: 10, output: 45, cache: { read: 1, write: 0 }, threshold: 272_000 }]
+    const below = Session.getUsage({
+      model: priced,
+      usage: { inputTokens: 271_999, outputTokens: 100, cachedInputTokens: 0 } as any,
+      metadata: { anthropic: {} } as any,
+    })
+    const exact = Session.getUsage({
+      model: priced,
+      usage: { inputTokens: 272_000, outputTokens: 100, cachedInputTokens: 0 } as any,
+      metadata: { anthropic: {} } as any,
+    })
+    expect(below.cost).toBeCloseTo((271_999 * 3 + 100 * 15) / 1_000_000, 6)
+    expect(exact.cost).toBeCloseTo((272_000 * 3 + 100 * 15) / 1_000_000, 6)
+    const above = Session.getUsage({
+      model: priced,
+      usage: { inputTokens: 272_001, outputTokens: 100, cachedInputTokens: 0 } as any,
+      metadata: { anthropic: {} } as any,
+    })
+    expect(above.cost).toBeCloseTo((272_001 * 10 + 100 * 45) / 1_000_000, 6)
+  })
+
+  test("clamps a would-be-negative input token count to zero (non-excludes provider)", () => {
+    // inputTokens already excludes cached, but provider isn't in the excludes set:
+    // 100 - 500 cacheRead = -400 → must clamp to 0, never negative tokens/cost.
+    const r = Session.getUsage({
+      model: model(),
+      usage: { inputTokens: 100, outputTokens: 50, cachedInputTokens: 500 } as any,
+    })
+    expect(r.tokens.input).toBe(0)
+    expect(r.cost).toBeGreaterThanOrEqual(0)
+  })
+
+  test("uses the selected service mode's pricing", () => {
+    const r = Session.getUsage({
+      model: model(),
+      tier: "fast",
+      usage: { inputTokens: 1_000, outputTokens: 100, cachedInputTokens: 0 } as any,
+    })
+    expect(r.cost).toBeCloseTo((1_000 * 6 + 100 * 30) / 1_000_000, 6)
+  })
+
+  test("Fast mode uses its own long-context rates only above the published boundary", () => {
+    const priced = model()
+    priced.modes!.fast!.cost!.tiers = [{ input: 12, output: 45, cache: { read: 1.2, write: 15 }, threshold: 272_000 }]
+    for (const input of [272_000, 272_001]) {
+      const result = Session.getUsage({
+        model: priced,
+        tier: "fast",
+        usage: { inputTokens: input, outputTokens: 100, cachedInputTokens: 0 } as any,
+      })
+      expect(result.cost).toBeCloseTo(
+        (input * (input > 272_000 ? 12 : 6) + 100 * (input > 272_000 ? 45 : 30)) / 1_000_000,
+        6,
+      )
+    }
+    const cached = Session.getUsage({
+      model: priced,
+      tier: "fast",
+      usage: { inputTokens: 10_000, outputTokens: 100, cachedInputTokens: 0 } as any,
+      metadata: { anthropic: { cacheCreationInputTokens: 270_000 } } as any,
+    })
+    expect(cached.cost).toBeCloseTo((10_000 * 12 + 100 * 45 + 270_000 * 15) / 1_000_000, 6)
+  })
+})
+
+describe("Session.getUsage with a gateway-reported cost", () => {
+  const usage = { inputTokens: 1_000, outputTokens: 500, reasoningTokens: 0, cachedInputTokens: 200 } as any
+  const table = (800 * 3 + 500 * 15 + 200 * 0.3) / 1_000_000
+  const reported = (cost: unknown) =>
+    ({ openrouter: { usage: { promptTokens: 1_000, completionTokens: 500, totalTokens: 1_500, cost } } }) as any
+
+  test("the reported cost wins over the table and carries the funding fee", () => {
+    const result = Session.getUsage({ model: model(), usage, metadata: reported(0.02), fundingFeeBps: 550 })
+    expect(result.cost).toBeCloseTo(0.02 * 1.055, 10)
+    expect(result.cost).not.toBeCloseTo(table, 6)
+    // The token split is unchanged: only the price source moves.
+    expect(result.tokens).toEqual({ input: 800, output: 500, reasoning: 0, cache: { read: 200, write: 0 } })
+    // A route the provider bills directly adds no fee.
+    expect(Session.getUsage({ model: model(), usage, metadata: reported(0.02) }).cost).toBeCloseTo(0.02, 10)
+    expect(Session.getUsage({ model: model(), usage, metadata: reported(0), fundingFeeBps: 550 }).cost).toBe(0)
+  })
+
+  test("usage accounting without a cost, or an unusable one, prices from the table", () => {
+    for (const metadata of [
+      { openrouter: { usage: { promptTokens: 1_000, completionTokens: 500 } } },
+      { openrouter: {} },
+      reported("0.02"),
+      reported(Number.NaN),
+      reported(Number.POSITIVE_INFINITY),
+      reported(-0.01),
+    ]) {
+      const result = Session.getUsage({ model: model(), usage, metadata: metadata as any, fundingFeeBps: 550 })
+      expect(result.cost).toBeCloseTo(table, 10)
+    }
+  })
+
+  test("a route whose catalog has not loaded and reports no cost is zero, not a fee on nothing", () => {
+    const unpriced = { ...model(), cost: undefined, modes: {} }
+    expect(Session.getUsage({ model: unpriced, usage, fundingFeeBps: 550 }).cost).toBe(0)
+    const placeholder = { ...model(), cost: { input: 0, output: 0, cache: { read: 0, write: 0 } }, modes: {} }
+    expect(Session.getUsage({ model: placeholder, usage, metadata: { openrouter: {} } as any }).cost).toBe(0)
+    // Once the gateway reports the cost, the same unpriced route is exact.
+    expect(Session.getUsage({ model: unpriced, usage, metadata: reported(0.4), fundingFeeBps: 550 }).cost).toBeCloseTo(
+      0.422,
+      10,
+    )
+  })
+})

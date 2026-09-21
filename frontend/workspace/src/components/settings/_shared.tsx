@@ -1,0 +1,382 @@
+import {
+  For,
+  Show,
+  createSignal,
+  createUniqueId,
+  onMount,
+  type JSX,
+  type ParentComponent,
+  type Component,
+  type Resource,
+} from "solid-js"
+import { Icon } from "@synsci/ui/icon"
+import type { IconProps } from "@synsci/ui/icon"
+import { DropdownMenu } from "@synsci/ui/dropdown-menu"
+
+// These menus render inside the modal settings Dialog. Kobalte portals a
+// dropdown to document.body by default, outside the dialog's accessible and
+// dismissable layer. Mount the portal inside the enclosing dialog so its
+// items stay accessible and interactions belong to that dialog.
+// Falls back to the default body portal when not inside a dialog.
+function useDialogMount() {
+  const [mount, setMount] = createSignal<HTMLElement>()
+  let trigger: HTMLElement | undefined
+  const update = () => setMount(trigger?.closest<HTMLElement>('[data-slot="dialog-content"]') ?? undefined)
+  const anchor = (el: HTMLElement) => {
+    trigger = el
+  }
+  // Ref callbacks can run before attachment. Resolve once connected, and
+  // again when opening in case the trigger has moved into another layer.
+  onMount(update)
+  const open = (value: boolean) => {
+    if (value) update()
+  }
+  return { mount, anchor, open }
+}
+
+// Panels render under the panel stack's Suspense boundary, and a resource read
+// re-suspends on every refetch. Left alone, a Rescan or Save swapped the whole
+// panel for its loading skeleton and reset the scroll position. Reading
+// `latest` keeps the current content on screen while a refresh resolves; the
+// first load still suspends into the skeleton as before.
+export function steady<T, A>(value: [Resource<T>, A]): [Resource<T>, A] {
+  const [resource, actions] = value
+  const read = (() => resource.latest) as Resource<T>
+  Object.defineProperties(read, {
+    state: { get: () => resource.state },
+    error: { get: () => resource.error },
+    loading: { get: () => resource.loading },
+    latest: { get: () => resource.latest },
+  })
+  return [read, actions]
+}
+
+// Shared visual language for the OpenScience settings panels. Matches the
+// reference (rounded cards, muted subheaders, filter/search/add toolbar) while
+// inheriting the workspace type stack and theme tokens. Panels stay one-file-
+// each; this module is pure presentational infrastructure they compose.
+
+export const PanelScroll: ParentComponent = (props) => (
+  <div class="flex min-h-0 min-w-0 flex-col h-full overflow-y-auto no-scrollbar">{props.children}</div>
+)
+
+export const PanelHeader: Component<{ title: string; description: string; toolbar?: JSX.Element }> = (props) => (
+  <div class="settings-page-header">
+    <div class="settings-page-header__inner min-w-0">
+      <div class="flex min-w-0 flex-col gap-1">
+        <h2 class="text-16-medium text-text-strong">{props.title}</h2>
+        <p class="text-13-regular text-text-weak">{props.description}</p>
+      </div>
+      <Show when={props.toolbar}>{props.toolbar}</Show>
+    </div>
+  </div>
+)
+
+export const PanelBody: ParentComponent = (props) => <div class="settings-page-body min-w-0">{props.children}</div>
+
+/** A section is a muted label with at most one quiet line beneath it. A
+ * count or an action belongs in a row, never at the heading's right edge:
+ * `count` and `action` are accepted for callers that still pass them and
+ * are not drawn. */
+export const Section: ParentComponent<{
+  title: string
+  description?: JSX.Element
+  count?: number
+  action?: JSX.Element
+  id?: string
+}> = (props) => {
+  const generated = `settings-${createUniqueId()}`
+  const id = () => props.id ?? generated
+  return (
+    <section class="settings-section" aria-labelledby={id()}>
+      <div class="settings-section-heading">
+        <div>
+          <h3 id={id()}>{props.title}</h3>
+          <Show when={props.description}>
+            <p>{props.description}</p>
+          </Show>
+        </div>
+      </div>
+      {props.children}
+    </section>
+  )
+}
+
+/** The copy of every row: a 14px medium title and a 12px muted line under
+ * it, in the one type stack. `mono` is accepted and not drawn: a path or a
+ * command reads as text here, like everything else on the page. */
+export const RowCopy: Component<{ title: string; description?: JSX.Element; mono?: boolean }> = (props) => (
+  <div class="settings-list-copy">
+    <strong>{props.title}</strong>
+    <Show when={props.description}>
+      <span class="whitespace-normal text-ellipsis">{props.description}</span>
+    </Show>
+  </div>
+)
+
+/** One row: copy on the left, one control on the right. A row that opens
+ * something is a button whose control is a chevron; a row that reports a
+ * state says it in plain muted text before its control. */
+export const SettingsRow: ParentComponent<{
+  title: string
+  description?: JSX.Element
+  status?: JSX.Element
+  logo?: JSX.Element
+  onClick?: () => void
+  ariaLabel?: string
+}> = (props) => {
+  const body = (
+    <>
+      <Show when={props.logo}>
+        <span class="settings-row-logo" aria-hidden="true">
+          {props.logo}
+        </span>
+      </Show>
+      <RowCopy title={props.title} description={props.description} />
+      <Show when={props.status}>
+        <span class="settings-row-status">{props.status}</span>
+      </Show>
+      <Show when={props.children}>
+        <div class="settings-row-control">{props.children}</div>
+      </Show>
+    </>
+  )
+  return (
+    <Show
+      when={props.onClick}
+      fallback={
+        <div class="settings-row settings-row--grammar min-w-0" data-row="grammar">
+          {body}
+        </div>
+      }
+    >
+      {(onClick) => (
+        <button
+          type="button"
+          class="settings-row settings-row--grammar min-w-0"
+          data-row="grammar"
+          data-interactive="true"
+          aria-label={props.ariaLabel}
+          onClick={() => onClick()()}
+        >
+          {body}
+          <Icon name="chevron-right" size="small" class="settings-row-chevron" />
+        </button>
+      )}
+    </Show>
+  )
+}
+
+// Muted sentence-case subheader. A count is not drawn; it belongs in a row.
+export const SectionLabel: Component<{ label: string; count?: number }> = (props) => (
+  <div class="settings-section-heading settings-section-heading--compact">
+    <h3 class="settings-section-label min-w-0 break-words">{props.label}</h3>
+  </div>
+)
+
+// Rounded card wrapping a stack of rows (dividers between children handled by
+// Row's border-b). Use for grouped lists.
+export const Card: ParentComponent = (props) => <div class="settings-card min-w-0 w-full">{props.children}</div>
+
+export const Row: ParentComponent<{ onClick?: () => void }> = (props) => (
+  <Show when={props.onClick} fallback={<div class="settings-row min-w-0">{props.children}</div>}>
+    {(onClick) => (
+      <button type="button" class="settings-row min-w-0" data-interactive="true" onClick={() => onClick()()}>
+        {props.children}
+      </button>
+    )}
+  </Show>
+)
+
+/** An empty list says so in one quiet line inside its card, as every other
+ * empty card does; `icon` is accepted for callers that still pass it. */
+export const EmptyState: Component<{ icon?: IconProps["name"]; title: string; hint?: string }> = (props) => (
+  <p class="settings-card-empty min-w-0" role="status">
+    {props.title}
+    <Show when={props.hint}> {props.hint}</Show>
+  </p>
+)
+
+// ── Toolbar pieces ──────────────────────────────────────────────────────────
+
+const controlBase = "settings-control"
+
+export const SearchInput: Component<{
+  value: string
+  onInput: (v: string) => void
+  placeholder?: string
+  ariaLabel?: string
+}> = (props) => (
+  <div class={`${controlBase} settings-control--search max-w-full`}>
+    <Icon name="magnifying-glass" size="small" class="text-icon-weak-base flex-shrink-0" />
+    <input
+      type="text"
+      aria-label={props.ariaLabel ?? props.placeholder ?? "Search"}
+      value={props.value}
+      placeholder={props.placeholder ?? "Search"}
+      spellcheck={false}
+      autocapitalize="off"
+      autocomplete="off"
+      class="min-w-0 flex-1 bg-transparent outline-none text-text-strong placeholder:text-text-weak/60"
+      onInput={(e) => props.onInput(e.currentTarget.value)}
+    />
+    <Show when={props.value}>
+      <button
+        type="button"
+        class="shrink-0 text-icon-weak-base hover:text-text-strong"
+        aria-label="Clear search"
+        onClick={() => props.onInput("")}
+      >
+        <Icon name="circle-x" size="small" />
+      </button>
+    </Show>
+  </div>
+)
+
+export interface FilterOption {
+  id: string
+  label: string
+  count?: number
+}
+
+export const FilterMenu: Component<{
+  options: FilterOption[]
+  value: string
+  onSelect: (id: string) => void
+  ariaLabel?: string
+}> = (props) => {
+  const active = () => props.options.find((o) => o.id === props.value) ?? props.options[0]
+  const dialog = useDialogMount()
+  return (
+    <DropdownMenu onOpenChange={dialog.open}>
+      <DropdownMenu.Trigger
+        ref={dialog.anchor}
+        aria-label={props.ariaLabel}
+        class={`${controlBase} settings-control--menu max-w-full`}
+      >
+        <span class="min-w-0 truncate max-w-[160px]">
+          {active()?.label}
+          <Show when={active()?.count !== undefined}> ({active()?.count})</Show>
+        </span>
+        <Icon name="chevron-down" size="small" class="shrink-0 text-icon-weak-base" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal mount={dialog.mount()}>
+        <DropdownMenu.Content class="mt-1 min-w-[180px]">
+          <For each={props.options}>
+            {(option) => (
+              <DropdownMenu.Item onSelect={() => props.onSelect(option.id)}>
+                <DropdownMenu.ItemLabel class="flex-1">{option.label}</DropdownMenu.ItemLabel>
+                <Show when={option.count !== undefined}>
+                  <span class="text-12-regular text-text-weak ml-4">{option.count}</span>
+                </Show>
+              </DropdownMenu.Item>
+            )}
+          </For>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu>
+  )
+}
+
+export interface AddItem {
+  icon: IconProps["name"]
+  label: string
+  description?: string
+  onSelect: () => void
+}
+
+export const AddMenu: Component<{ label: string; items: AddItem[] }> = (props) => {
+  const dialog = useDialogMount()
+  return (
+    <DropdownMenu onOpenChange={dialog.open}>
+      <DropdownMenu.Trigger
+        ref={dialog.anchor}
+        aria-label={props.label}
+        class={`${controlBase} settings-control--primary max-w-full`}
+      >
+        <Icon name="plus" size="small" class="shrink-0" />
+        <span class="min-w-0 truncate">{props.label}</span>
+        <Icon name="chevron-down" size="small" class="shrink-0 text-icon-weak-base" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal mount={dialog.mount()}>
+        <DropdownMenu.Content class="mt-1 min-w-[240px]">
+          <For each={props.items}>
+            {(item) => (
+              <DropdownMenu.Item aria-label={item.label} onSelect={item.onSelect} class="items-start gap-2.5 py-2">
+                <Icon name={item.icon} size="small" class="text-icon-weak-base mt-0.5 flex-shrink-0" />
+                <div class="flex flex-col gap-0.5 min-w-0">
+                  <DropdownMenu.ItemLabel>{item.label}</DropdownMenu.ItemLabel>
+                  <Show when={item.description}>
+                    <DropdownMenu.ItemDescription class="text-12-regular text-text-weak">
+                      {item.description}
+                    </DropdownMenu.ItemDescription>
+                  </Show>
+                </div>
+              </DropdownMenu.Item>
+            )}
+          </For>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu>
+  )
+}
+
+export const Toolbar: ParentComponent = (props) => <div class="settings-toolbar min-w-0">{props.children}</div>
+
+// A small labelled text/textarea field used by the inline creation forms.
+export const FormField: Component<{
+  label: string
+  value: string
+  onInput: (v: string) => void
+  placeholder?: string
+  multiline?: boolean
+  disabled?: boolean
+  mono?: boolean
+  secret?: boolean
+}> = (props) => (
+  <label class="flex min-w-0 flex-col gap-1.5">
+    <span class="text-12-medium text-text-strong">{props.label}</span>
+    <Show
+      when={props.multiline}
+      fallback={
+        <input
+          type={props.secret ? "password" : "text"}
+          autocomplete={props.secret ? "new-password" : undefined}
+          value={props.value}
+          disabled={props.disabled}
+          placeholder={props.placeholder}
+          class="settings-field"
+          classList={{ "font-mono": props.mono }}
+          onInput={(e) => props.onInput(e.currentTarget.value)}
+        />
+      }
+    >
+      <textarea
+        value={props.value}
+        disabled={props.disabled}
+        placeholder={props.placeholder}
+        rows={5}
+        class="settings-field settings-field--multiline"
+        classList={{ "font-mono": props.mono }}
+        onInput={(e) => props.onInput(e.currentTarget.value)}
+      />
+    </Show>
+  </label>
+)
+
+export const FormButton: Component<{
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  variant?: "primary" | "ghost" | "danger"
+}> = (props) => (
+  <button
+    type="button"
+    disabled={props.disabled}
+    onClick={props.onClick}
+    class="settings-button max-w-full"
+    data-variant={props.variant ?? "primary"}
+  >
+    {props.label}
+  </button>
+)

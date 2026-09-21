@@ -1,0 +1,140 @@
+---
+title: "Local models"
+description: "Connect Ollama, LM Studio, or an endpoint on infrastructure you manage."
+---
+
+OpenScience can use models served through a compatible `/v1` endpoint. A model running on your machine uses your hardware and does not create an Ace model charge. Remote endpoints, model downloads, and external tools have their own connectivity and cost requirements.
+
+## Start with Ollama
+
+Install [Ollama](https://ollama.com/download), then download a model. This example uses `qwen3:8b`; choose a model that fits your machine.
+
+```bash
+ollama pull qwen3:8b
+```
+
+If Ollama is not already running, run `ollama serve` in another terminal. Connect it to OpenScience:
+
+```bash
+openscience local add --url http://localhost:11434/v1 --id ollama --default
+openscience models ollama
+openscience run --model ollama/qwen3:8b --bare "Explain what a confidence interval means"
+```
+
+`--bare` disables tools for a quick connection check. After that succeeds, try a small file-reading task without `--bare`. Tool use depends on both the selected model and its server.
+
+The [Ollama compatibility guide](https://docs.ollama.com/api/openai-compatibility) describes the endpoint's supported features.
+
+## Connect from the workspace
+
+Open **Customize → Local models**.
+
+1. Start a detected runtime, or start the model server yourself.
+2. Rescan to find running endpoints.
+3. Select the models you want to add and set their context window.
+4. Return to the model picker. Added models appear under **More models** in their own local group, ready to choose.
+
+For Ollama, the panel can copy a model-download command. Run that command in your system terminal, then rescan. Copying a command does not execute it.
+
+For a custom endpoint, enter its URL, supply a key if required, list the models, and add your selection.
+
+## LM Studio and other servers
+
+In LM Studio, download and load a model, then start its local server. Connect the endpoint through Customize or the CLI:
+
+```bash
+openscience local add --url http://localhost:1234/v1 --id lmstudio
+```
+
+Use the exact model ID reported by the server. See [LM Studio's compatibility guide](https://lmstudio.ai/docs/developer/openai-compat) for supported endpoints and features.
+
+OpenScience checks these common addresses during discovery. Your server may be configured differently.
+
+| Runtime | Common base URL |
+| --- | --- |
+| Ollama | `http://localhost:11434/v1` |
+| LM Studio | `http://localhost:1234/v1` |
+| llama.cpp | `http://localhost:8080/v1` |
+| vLLM | `http://localhost:8000/v1` |
+| Jan | `http://localhost:1337/v1` |
+
+## Context window and memory
+
+Every local connection form has a **Context window** field. Set it before adding the models; OpenScience otherwise assumes 32,768 tokens and compacts long sessions earlier than the server requires.
+
+For Ollama, the value also creates a tuned model alias with that context size, because Ollama does not expose context sizing through its compatible endpoint. Larger windows use more memory.
+
+For LM Studio, vLLM, llama.cpp, SSH-forwarded, and direct endpoints, the value only tells OpenScience how much context it may send. Configure the actual window in that server and keep the two consistent.
+
+The CLI equivalent is:
+
+```bash
+openscience local add --url http://localhost:11434/v1 --id ollama --model qwen3:8b --context 32768
+openscience local add --url http://localhost:8000/v1 --id vllm --model my-model --context 131072
+```
+
+Use the registered model ID printed by the command.
+
+## Connect a remote model you manage
+
+The **Connect over SSH** section can forward a remote model endpoint to your machine. First make sure the host works with your SSH configuration and keys. Enter the host, remote port, local port, and endpoint key if needed, then choose **Connect models**.
+
+You can also connect a LAN, VPN, or HTTPS endpoint directly. Its model requests run on that server, so this is not an offline setup. Any remote hosting charges are separate from Ace.
+
+## CLI reference
+
+| Command or flag | Purpose |
+| --- | --- |
+| `openscience local` or `local add` | Discover and add an endpoint interactively. |
+| `local list` | List configured local providers. |
+| `local remove <id>` | Remove a provider from OpenScience configuration. |
+| `--url <url>` | Endpoint base URL. |
+| `--model <id>` | Register a specific model; repeat for multiple models. |
+| `--id <id>` | Name the provider in OpenScience. |
+| `--context <tokens>` | Record the context window; Ollama also gets a tuned model alias. |
+| `--key <key>` | Authenticate an endpoint that requires a key. |
+| `--project` | Save the connection in project configuration. |
+| `--default` | Set the first registered model as the default. |
+
+Prefer the workspace form for a private key so it does not appear in shell history. Avoid saving real keys in project files you commit.
+
+Removing a provider from OpenScience does not delete downloaded model weights from its runtime.
+
+## Manual configuration
+
+The connection wizard writes the provider configuration for you. An equivalent minimal example is:
+
+```json
+{
+  "provider": {
+    "ollama": {
+      "name": "Ollama",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:11434/v1",
+        "apiKey": "ollama"
+      },
+      "models": {
+        "qwen3:8b": {
+          "tool_call": true,
+          "limit": { "context": 32768, "output": 8192 }
+        }
+      }
+    }
+  }
+}
+```
+
+The `ollama` key above is a placeholder for a keyless local server, not a private credential. The `models` map must include the exact model IDs you intend to use. Only enable `tool_call` when the model and endpoint support it. The declared limits do not configure the server's actual memory allocation.
+
+## Troubleshooting and offline use
+
+If discovery is empty, check that the server is running, a model is downloaded or loaded, and the URL ends in `/v1`. For Ollama:
+
+```bash
+curl http://localhost:11434/v1/models
+```
+
+If the simple `--bare` request works but file or research tasks fail, check tool support and context limits. Try a smaller input or a model with stronger tool support.
+
+Downloaded models can generate responses without a network connection. Web search, online databases, remote connectors, and first-time downloads still need one. See [Troubleshooting](/openscience/troubleshooting) for more checks.

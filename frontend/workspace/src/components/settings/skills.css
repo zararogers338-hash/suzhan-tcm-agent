@@ -1,0 +1,333 @@
+.settings-skills {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.settings-skills > .skills-workspace {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  font-optical-sizing: auto;
+}
+
+/* Same page geometry as PanelHeader / PanelBody so switching to Skills does
+   not shift the title or indent the content. */
+.settings-skills .skills-workspace__header {
+  padding: var(--settings-space-5) var(--settings-space-6) var(--settings-space-3);
+  border-bottom: 0;
+  background: var(--settings-canvas);
+}
+
+.settings-skills .skills-workspace__body {
+  padding: var(--settings-space-3) var(--settings-space-6) var(--settings-space-7);
+}
+
+.settings-skills .skills-workspace__heading,
+.settings-skills .skills-workspace__toolbar,
+.settings-skills .skills-workspace__content {
+  width: 100%;
+  max-width: 836px;
+  margin-inline: auto;
+}
+
+.settings-skills .skills-workspace__heading h2 {
+  font-size: var(--settings-type-title);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--settings-leading-title);
+  letter-spacing: -0.015em;
+}
+
+.settings-skills .skills-workspace__heading p {
+  max-width: 700px;
+  margin-top: 4px;
+  font-size: var(--settings-type-body);
+  line-height: var(--settings-leading-body);
+}
+
+/* The header keeps the one quiet line every panel has; the tallies live in
+   the view control's labels. */
+.settings-skills .skills-workspace__summary {
+  display: none;
+}
+
+/* Embedded Skills follows the same compact hierarchy as Compute and the
+   other capability panels. */
+.settings-skills .skills-workspace__identity strong,
+.settings-skills .skills-workspace__shelf-toggle strong,
+.settings-skills .skills-workspace__form-heading h3,
+.settings-skills .skills-workspace__empty > strong {
+  font-size: var(--settings-type-row);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--settings-leading-body);
+  letter-spacing: 0;
+}
+
+/* Group headings are section labels: muted, 12px, one line beneath. */
+.settings-skills .skills-workspace__group-heading {
+  padding-inline: 2px;
+}
+.settings-skills .skills-workspace__group-heading h3 {
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-heading);
+  font-weight: var(--font-weight-medium);
+  line-height: 16px;
+  letter-spacing: 0;
+}
+
+.settings-skills .skills-workspace__group-heading p,
+.settings-skills .skills-workspace__details,
+.settings-skills .skills-workspace__form-heading p,
+.settings-skills .skills-workspace__form-fields > label > span,
+.settings-skills .skills-workspace__form-fields input,
+.settings-skills .skills-workspace__form-fields textarea,
+.settings-skills .skills-workspace__form-note,
+.settings-skills .skills-workspace__empty > p,
+.settings-skills .skills-workspace__empty > button,
+.settings-skills .skills-workspace__form-actions button {
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+}
+
+.settings-skills .skills-workspace .settings-control {
+  min-height: 28px;
+  height: 28px;
+  padding-inline: 10px;
+  border-color: transparent;
+  background: var(--settings-surface-muted);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+}
+
+.settings-skills .skills-workspace .settings-toolbar > label input {
+  font-size: var(--settings-type-helper);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--settings-leading-helper);
+}
+
+.settings-skills .skills-workspace .settings-control:hover,
+.settings-skills .skills-workspace .settings-control[data-expanded] {
+  border-color: transparent;
+  background: var(--settings-surface-active);
+}
+
+.settings-skills .skills-workspace .settings-control[aria-label="Add skill"] [data-component="icon"] {
+  color: currentColor;
+}
+
+/* The view switch is General's segmented control. */
+.settings-skills .skills-workspace__views {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--settings-radius-control);
+  background: var(--settings-surface-muted);
+  box-shadow: none;
+}
+.settings-skills .skills-workspace__views button {
+  min-width: 0;
+  min-height: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: calc(var(--settings-radius-control) - 2px);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  font-weight: var(--font-weight-medium);
+  line-height: 16px;
+  box-shadow: none;
+}
+.settings-skills .skills-workspace__views button > span {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+.settings-skills .skills-workspace__views button:hover,
+.settings-skills .skills-workspace__views button[aria-pressed="true"] {
+  color: var(--color-text);
+  background: var(--settings-surface-hover);
+}
+
+.settings-skills .skills-workspace__list {
+  gap: var(--settings-space-5);
+}
+
+.settings-skills .skills-workspace__rows {
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--settings-border);
+  border-radius: var(--settings-radius-card);
+  background: var(--settings-surface);
+  box-shadow: none;
+}
+.settings-skills .skills-workspace__rows > .skills-workspace__row + .skills-workspace__row {
+  border-top: 1px solid var(--settings-border);
+}
+.settings-skills .skills-workspace__rows > .skills-workspace__row {
+  border-radius: 0;
+}
+
+.settings-skills .skills-workspace__row,
+.settings-skills .skills-workspace__source {
+  border: 0;
+  border-radius: var(--settings-radius-control);
+  background: transparent;
+}
+
+.settings-skills .skills-workspace__row:hover {
+  background: var(--settings-surface-hover);
+}
+
+.settings-skills .skills-workspace__shelf {
+  background: var(--settings-surface);
+  box-shadow: var(--settings-shadow-card);
+}
+
+.settings-skills .skills-workspace__shelf > .skills-workspace__rows {
+  padding: 0 4px;
+  box-shadow: none;
+}
+
+.settings-skills .skills-workspace__shelf > .skills-workspace__rows .skills-workspace__row {
+  background: var(--settings-surface-muted);
+}
+
+.settings-skills .skills-workspace__shelf > .skills-workspace__rows .skills-workspace__row:hover {
+  background: var(--settings-surface-hover);
+}
+
+.settings-skills .skills-workspace__form-icon,
+.settings-skills .skills-workspace__empty-icon {
+  border: 0;
+  background: var(--settings-surface-active);
+}
+
+.settings-skills .skills-workspace__form {
+  background: var(--settings-surface);
+  box-shadow: var(--settings-shadow-card);
+}
+
+.settings-skills .skills-workspace__form-fields .settings-field {
+  border-color: transparent;
+  background: var(--settings-surface-muted);
+}
+
+.settings-skills .skills-workspace__form-fields input.settings-field {
+  min-height: 32px;
+  height: 32px;
+  padding-block: 5px;
+}
+
+.settings-skills .skills-workspace__form-actions .settings-button {
+  min-height: 32px;
+  padding-inline: 12px;
+}
+
+.settings-skills .skills-workspace__form-actions .settings-button[data-variant="primary"] {
+  border-color: var(--settings-primary);
+  background: var(--settings-primary);
+  color: var(--settings-on-primary);
+  box-shadow: none;
+}
+
+@container skills-workspace (max-width: 960px) {
+  .settings-skills .skills-workspace__header {
+    padding: 20px 20px 16px;
+  }
+
+  .settings-skills .skills-workspace__body {
+    padding: 16px 20px 36px;
+  }
+}
+
+/* One row grammar: the title, the slug and purpose on one line beneath it,
+   and the controls at the right. No glyph column, no third column. */
+.settings-skills .skills-workspace__row {
+  min-height: 48px;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "glyph identity state actions"
+    "glyph details state actions";
+  gap: 2px var(--settings-space-3);
+  padding: 8px var(--settings-space-3);
+}
+.settings-skills .skills-workspace__row .skills-workspace__skill-icon {
+  grid-area: glyph;
+  align-self: center;
+}
+.settings-skills .skills-workspace__identity {
+  grid-area: identity;
+}
+.settings-skills .skills-workspace__identity strong {
+  white-space: normal;
+}
+.settings-skills .skills-workspace__identity > span {
+  display: none;
+}
+.settings-skills .skills-workspace__details {
+  grid-area: details;
+  display: block;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.settings-skills .skills-workspace__details-slug {
+  display: inline;
+  color: var(--color-text-muted);
+}
+.settings-skills .skills-workspace__details-slug::after {
+  content: " · ";
+}
+.settings-skills .skills-workspace__state {
+  grid-area: state;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  font-weight: var(--font-weight-regular);
+}
+.settings-skills .skills-workspace__actions {
+  grid-area: actions;
+}
+
+/* Rows, sources and shelf heads share one flat 20px glyph, muted, no tile. */
+.settings-skills .skills-workspace__skill-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-icon-muted);
+}
+.settings-skills .skills-workspace__shelf-toggle {
+  font-size: var(--settings-type-row);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--settings-leading-body);
+  color: var(--color-text);
+}
+.settings-skills .skills-workspace__shelf-toggle small,
+.settings-skills .skills-workspace__shelf-toggle span:not(.skills-workspace__skill-icon) {
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  font-weight: var(--font-weight-regular);
+}
+.settings-skills .skills-workspace__shelf-actions button {
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+}

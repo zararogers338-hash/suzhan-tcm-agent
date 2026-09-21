@@ -1,0 +1,33 @@
+[data-component="card"] {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-inset-base);
+  border: 1px solid var(--border-weaker-base);
+  transition: background-color 0.15s ease;
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  overflow: clip;
+
+  /* A failure is stated, not shouted: the card keeps the neutral surface,
+     a thin critical accent on the left names the state, and only the icon and
+     the title carry the critical colour. The message stays readable body text. */
+  &[data-variant="error"] {
+    background-color: var(--surface-inset-base);
+    border: 1px solid var(--border-weaker-base);
+    border-left: 2px solid var(--border-critical-base);
+    color: var(--text-base);
+
+    /* text-12-regular */
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-small);
+    font-style: normal;
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-large); /* 166.667% */
+    letter-spacing: var(--letter-spacing-normal);
+
+    &[data-component="icon"] {
+      color: var(--icon-critical-active);
+    }
+  }
+}

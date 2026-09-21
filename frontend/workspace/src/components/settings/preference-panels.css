@@ -1,0 +1,645 @@
+/*
+ * Calm grouped settings surfaces for the system and app preference panels.
+ *
+ * The panel components opt into this layer with `.settings-preferences-panel`.
+ * It intentionally keeps one semantic surface around each related group, uses
+ * spacing instead of nested separators, and leaves advanced controls behind
+ * explicit disclosure actions.
+ */
+.settings-preferences-panel {
+  --settings-preferences-accent: var(--settings-accent);
+  min-width: 0;
+  min-height: 100%;
+}
+
+.settings-preferences-panel .settings-page-header {
+  padding-bottom: var(--settings-space-3);
+  border-bottom: 0;
+}
+
+.settings-preferences-panel .settings-page-header h2 {
+  text-wrap: balance;
+}
+
+.settings-preferences-panel :where(.settings-page-header p, .settings-section-heading p, .settings-row-copy span) {
+  text-wrap: pretty;
+}
+
+.settings-preferences-panel .settings-page-body {
+  gap: var(--settings-space-5);
+  padding-top: var(--settings-space-3);
+}
+
+.settings-preferences-panel .settings-section {
+  gap: var(--settings-space-2);
+}
+
+.settings-preferences-panel .settings-card {
+  border: 1px solid var(--settings-border);
+  border-radius: var(--settings-radius-card);
+  background: var(--settings-surface);
+  box-shadow: none;
+}
+
+/* Grouped preference rows sit flush inside one surface, as in Models. */
+.settings-preferences-card {
+  gap: 0;
+  overflow: hidden;
+}
+
+.settings-preferences-panel .settings-list-item + .settings-list-item {
+  border-top: 1px solid var(--settings-border);
+}
+
+.settings-preferences-panel .settings-row,
+.settings-preference-row {
+  position: relative;
+  min-height: 48px;
+  gap: var(--settings-space-3);
+  padding: 8px var(--settings-space-3);
+  border-bottom: 0;
+}
+
+.settings-preference-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--settings-radius-control);
+  background: var(--color-hover);
+  color: var(--color-icon-strong);
+}
+
+.settings-preference-icon[data-tone="success"] {
+  background: color-mix(in srgb, var(--color-icon-success) 11%, var(--settings-surface-muted));
+  color: var(--color-icon-success);
+}
+
+.settings-preference-icon[data-tone="warning"] {
+  background: color-mix(in srgb, var(--color-text-warning) 12%, var(--settings-surface-muted));
+  color: var(--color-text-warning);
+}
+
+.settings-row-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-row-copy strong {
+  color: var(--color-text);
+  font-size: var(--settings-type-row);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--settings-leading-body);
+}
+
+.settings-row-copy span {
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+}
+
+/* A state is plain muted text, as in General. Warnings keep their tone. */
+.settings-preference-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--settings-leading-helper);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings-preference-status[data-tone="warning"] {
+  color: var(--color-text-warning);
+}
+
+.settings-preference-action {
+  min-width: 28px;
+  min-height: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--settings-space-2);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--settings-radius-control);
+  background: var(--settings-surface-muted);
+  color: var(--color-text);
+  font-size: var(--settings-type-helper);
+  font-weight: var(--font-weight-medium);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease;
+}
+
+.settings-preference-action:hover:not(:disabled) {
+  background: var(--settings-surface-hover);
+}
+
+.settings-preference-action[data-variant="primary"] {
+  background: var(--settings-primary);
+  color: var(--settings-on-primary);
+}
+
+.settings-preference-action[data-variant="primary"]:hover:not(:disabled) {
+  background: var(--settings-primary-hover);
+}
+
+.settings-preference-action[data-variant="quiet"] {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.settings-preference-action[data-variant="danger"] {
+  background: transparent;
+  color: var(--color-text-danger);
+}
+
+.settings-preference-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.settings-preferences-panel .settings-icon-action {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--settings-radius-control);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease;
+}
+
+.settings-preferences-panel :where(button, [role="button"], input, select, textarea):focus-visible {
+  transition: none;
+}
+
+.settings-preference-disclosure {
+  padding: 0 var(--settings-space-4) var(--settings-space-3) var(--settings-space-4);
+}
+
+.settings-preference-domain-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--settings-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-preference-domain-list li {
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+}
+
+.settings-inline-editor {
+  display: grid;
+  gap: var(--settings-space-3);
+  padding: 2px var(--settings-space-4) var(--settings-space-4) var(--settings-space-4);
+}
+
+.settings-inline-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--settings-space-2);
+}
+
+.settings-preferences-panel .settings-field {
+  border-color: transparent;
+  border-radius: var(--settings-radius-control);
+  background: var(--settings-surface-muted);
+  box-shadow: none;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.settings-preferences-panel .settings-field:focus {
+  border-color: transparent;
+  background: var(--settings-surface-hover);
+  box-shadow: none;
+}
+
+.settings-preferences-panel .settings-alert {
+  border: 0;
+  border-radius: var(--settings-radius-control);
+  box-shadow: none;
+}
+
+.settings-preferences-panel .settings-alert[data-tone="success"] {
+  background: color-mix(in srgb, var(--color-icon-success) 7%, transparent);
+  color: var(--color-text);
+}
+
+/* Background saves announce inline beside the affected section heading, the
+   way Models reports "Saving…", instead of floating over the page header. */
+.settings-preferences-panel .settings-network-save-state,
+.settings-preferences-panel .settings-sandbox-save-state {
+  min-width: 48px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-x-small);
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: right;
+}
+
+/* Network follows the same flat row language as Compute. Repeated service
+   icons were removed; the large disclosure target and switches carry the
+   interaction without another visual column. */
+.settings-preferences-panel--network .settings-network-loading-rows {
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  background: var(--settings-surface);
+  box-shadow: none;
+}
+
+.settings-preferences-panel--network .settings-network-loading-rows > span {
+  height: 56px;
+  background: var(--settings-surface-muted);
+}
+
+.settings-preferences-panel--network .settings-network-loading-rows--domains > span {
+  height: 44px;
+}
+
+.settings-preferences-panel--network .settings-network-loading-rows--domains > span:last-child {
+  height: 48px;
+}
+
+.settings-preferences-panel--network .settings-network-policy-row,
+.settings-preferences-panel--network .settings-network-group-row,
+.settings-preferences-panel--network .settings-network-domain-row {
+  flex-wrap: nowrap;
+}
+
+.settings-preferences-panel--network .settings-network-policy-row,
+.settings-preferences-panel--network .settings-network-group-row,
+.settings-preferences-panel--network .settings-network-domain-row {
+  min-height: 48px;
+  padding-block: 8px;
+}
+
+.settings-preferences-panel--network .settings-preference-disclosure {
+  padding: 0 var(--settings-space-3) var(--settings-space-3);
+}
+
+.settings-preferences-panel--network .settings-network-domain-value {
+  flex: 1 1 220px;
+  font-variant-numeric: slashed-zero;
+}
+
+.settings-preferences-panel--network .settings-network-add-row {
+  min-height: 48px;
+  flex-wrap: nowrap;
+  padding-block: 8px;
+}
+
+/* Compute uses one calm surface hierarchy and lets action groups wrap before
+   they squeeze the operational copy into a narrow right-aligned column. */
+.settings-compute-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--settings-space-3);
+  padding: 8px var(--settings-space-3) var(--settings-space-3);
+}
+
+.settings-compute-card > .settings-compute-provider-row {
+  min-height: 32px;
+}
+
+.settings-compute-provider-row,
+.settings-compute-summary-row,
+.settings-compute-host-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--settings-space-3);
+}
+
+.settings-compute-provider-row {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.settings-compute-summary-row,
+.settings-compute-host-row {
+  flex-wrap: nowrap;
+}
+
+.settings-compute-summary-action {
+  max-width: 100%;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.settings-compute-actions,
+.settings-compute-host-actions {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--settings-space-2);
+}
+
+.settings-compute-actions {
+  justify-content: flex-end;
+}
+
+.settings-compute-remote {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--settings-space-3);
+}
+
+.settings-compute-config-import {
+  display: grid;
+  gap: var(--settings-space-2);
+}
+
+.settings-compute-host-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 320px;
+  align-items: flex-start;
+  gap: var(--settings-space-3);
+}
+
+.settings-compute-host-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.settings-compute-host-notes-copy {
+  max-width: 72ch;
+  margin-top: var(--settings-space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-x-small);
+  line-height: 1.45;
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+
+.settings-compute-host-notes-editor {
+  display: grid;
+  gap: var(--settings-space-2);
+  padding: 0 var(--settings-space-4) var(--settings-space-4) var(--settings-space-4);
+}
+
+.settings-compute-host-notes-editor > p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-x-small);
+  line-height: 1.45;
+}
+
+.settings-preferences-panel .settings-compute-notes-field {
+  min-height: 76px;
+  padding-block: 8px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.settings-permission-defaults[data-expanded="false"] .settings-card > .settings-row:nth-child(n + 7) {
+  display: none;
+}
+
+.settings-disclosure-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--settings-space-2);
+}
+
+.settings-disclosure-group,
+.settings-general-extras {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.settings-disclosure-group {
+  gap: var(--settings-space-2);
+}
+
+.settings-general-extras {
+  gap: var(--settings-space-5);
+}
+
+.settings-general-extras[data-expanded="false"] > .settings-section:nth-child(n + 3):not(:last-child) {
+  display: none;
+}
+
+.settings-storage-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--settings-space-3);
+}
+
+.settings-storage-path,
+.settings-storage-size,
+.settings-storage-metric {
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-storage-path {
+  font-variant-numeric: slashed-zero;
+}
+
+.settings-preferences-panel .settings-storage-usage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--settings-space-3);
+  row-gap: var(--settings-space-2);
+}
+
+.settings-preferences-panel .settings-storage-cache {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--settings-space-3);
+}
+
+.settings-storage-meter {
+  grid-column: 1 / -1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--settings-surface-muted);
+}
+
+.settings-storage-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.settings-sandbox-checks {
+  display: grid;
+  gap: var(--settings-space-2);
+  padding: 0 var(--settings-space-4) var(--settings-space-4) var(--settings-space-4);
+}
+
+.settings-sandbox-check {
+  display: grid;
+  grid-template-columns: 18px minmax(0, auto) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--settings-space-2);
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+  line-height: 18px;
+}
+
+.settings-sandbox-check__detail {
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.settings-account-card {
+  overflow: hidden;
+  padding: var(--settings-space-1);
+}
+
+.settings-account-card > * + * {
+  border-top: 1px solid var(--color-border-weak);
+}
+
+.settings-account-logo .settings-provider-logo {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-preference-row__actions {
+  min-width: 0;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--settings-space-2);
+  margin-left: auto;
+}
+
+.settings-account-value {
+  max-width: min(320px, 100%);
+  color: var(--color-text-muted);
+  font-size: var(--settings-type-helper);
+  line-height: var(--settings-leading-helper);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.settings-account-workspace {
+  width: min(220px, 100%);
+  min-width: 160px;
+}
+
+.settings-account-workspace [data-slot="select-select-trigger"] {
+  width: 100%;
+}
+
+@container settings-main (max-width: 680px) {
+  .settings-compute-host-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .settings-compute-host-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .settings-compute-host-notes-editor {
+    padding-left: var(--settings-space-4);
+  }
+
+  .settings-compute-actions {
+    justify-content: flex-start;
+  }
+}
+
+@container settings-main (max-width: 560px) {
+  .settings-preferences-panel .settings-row,
+  .settings-preference-row,
+  .settings-storage-location {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .settings-preference-row__actions,
+  .settings-storage-location__actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .settings-account-workspace {
+    width: 100%;
+  }
+
+  .settings-inline-editor,
+  .settings-preference-disclosure,
+  .settings-sandbox-checks {
+    padding-left: var(--settings-space-4);
+  }
+
+  .settings-storage-cache {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .settings-storage-cache .settings-preference-action {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .settings-preferences-panel--network .settings-network-policy-row,
+  .settings-preferences-panel--network .settings-network-group-row,
+  .settings-preferences-panel--network .settings-network-domain-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .settings-preferences-panel--network .settings-network-group-description {
+    block-size: var(--settings-leading-helper);
+    max-block-size: var(--settings-leading-helper);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .settings-compute-summary-action {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@container settings-main (max-width: 420px) {
+  .settings-preferences-panel--network .settings-network-add-row {
+    flex-wrap: wrap;
+  }
+}

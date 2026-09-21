@@ -1,0 +1,340 @@
+/* TCM-Agent extends the real OpenScience surfaces. Colors remain semantic:
+   changing the appearance still updates chat, tools, settings and approvals. */
+html[data-theme="openscience"] {
+  --font-serif: var(--font-family-serif);
+  --tcm-theme-lavender: light-dark(#eeeaf2, #32303d);
+  --tcm-theme-blue: light-dark(#e9eef1, #2b343c);
+  --tcm-theme-gold: light-dark(#c5b897, #9c906e);
+  --tcm-theme-hairline: color-mix(in srgb, var(--color-text) 14%, transparent);
+  --atlas-shadow-xs: 0 1px 3px light-dark(rgb(48 49 64 / 0.035), rgb(0 0 0 / 0.14));
+  --atlas-shadow-sm: 0 3px 16px -8px light-dark(rgb(48 49 64 / 0.12), rgb(0 0 0 / 0.35));
+  --atlas-shadow-md: 0 12px 40px -20px light-dark(rgb(48 49 64 / 0.16), rgb(0 0 0 / 0.5));
+  --atlas-shadow-float: var(--atlas-shadow-md);
+
+  ::selection {
+    background: var(--tcm-theme-lavender);
+    color: var(--color-text);
+  }
+
+  /* Serif is reserved for editorial hierarchy; controls and evidence stay sans. */
+  .science-home__title h1,
+  .session-empty__title,
+  .settings-dialog .settings-page-header h2,
+  [data-component="dialog"] [data-slot="dialog-title"],
+  .app-not-found h1 {
+    font-family: var(--font-serif);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: 0.015em;
+    line-height: 1.4;
+  }
+
+  [data-component="button"] {
+    border-radius: var(--atlas-radius-pill);
+    padding-inline: 18px;
+    box-shadow: none;
+  }
+
+  [data-component="button"][data-variant="secondary"] {
+    border: 1px solid var(--tcm-theme-hairline);
+  }
+
+  [data-component="button"][data-variant="primary"] {
+    background: var(--color-brand);
+    color: var(--color-on-accent);
+    border-color: transparent;
+  }
+
+  [data-component="button"][data-variant="primary"]:is(:hover, :focus-visible):not(:disabled) {
+    background: var(--color-accent-hover);
+  }
+
+  [data-component="button"][data-size="small"] {
+    padding-inline: 14px;
+  }
+
+  [data-component="icon-button"] {
+    border-radius: 50%;
+  }
+
+  [data-component="dialog"] [data-slot="dialog-content"],
+  .atlas-modal {
+    border: 1px solid var(--tcm-theme-hairline);
+    border-radius: 24px;
+    box-shadow: var(--atlas-shadow-md);
+  }
+
+  [data-component="dialog"] [data-slot="dialog-header"] {
+    padding: 24px 28px 18px;
+  }
+
+  [data-component="dialog"] [data-slot="dialog-title"] {
+    font-size: 23px;
+  }
+
+  [data-component="dialog-overlay"] {
+    background: light-dark(rgb(48 49 64 / 0.18), rgb(0 0 0 / 0.55));
+    backdrop-filter: blur(3px);
+  }
+
+  [data-component="popover-content"],
+  [data-component="dropdown-menu-content"],
+  [data-slot="select-select-content"] {
+    border-color: var(--tcm-theme-hairline);
+    border-radius: 16px;
+    box-shadow: var(--atlas-shadow-sm);
+  }
+
+  .atlas-btn,
+  .science-home__button,
+  .science-home__server,
+  .session-sidebar__new,
+  .session-jump-latest {
+    border-radius: var(--atlas-radius-pill);
+  }
+
+  .atlas-chip {
+    border-radius: var(--atlas-radius-pill);
+    padding-inline: 10px;
+  }
+
+  /* Project browser: a paper reading surface, with decoration in spare space. */
+  .science-home__main {
+    padding: clamp(36px, 6vh, 76px) clamp(24px, 5vw, 76px) 80px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='130' viewBox='0 0 180 130' fill='none'%3E%3Cellipse cx='97' cy='56' rx='61' ry='36' transform='rotate(-29 97 56)' stroke='%23c5b897' stroke-opacity='.55'/%3E%3Cellipse cx='97' cy='56' rx='49' ry='46' transform='rotate(28 97 56)' stroke='%23adacc2' stroke-opacity='.42'/%3E%3Cpath d='M126 9C128 20 130 22 141 24C130 26 128 28 126 39C124 28 122 26 111 24C122 22 124 20 126 9Z' fill='%23adacc2' fill-opacity='.6'/%3E%3Ccircle cx='42' cy='86' r='3' fill='%23c5b897'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 32px top 24px;
+    background-size: 180px 130px;
+  }
+
+  .science-home__heading {
+    margin-bottom: 34px;
+  }
+
+  .science-home__title h1 {
+    font-size: clamp(32px, 3.5vw, 46px);
+  }
+
+  .science-home__heading-copy > p {
+    margin-top: 8px;
+    max-width: 58ch;
+    line-height: 1.8;
+  }
+
+  .science-home__search {
+    border-radius: var(--atlas-radius-pill);
+    padding-inline: 18px;
+    background: var(--color-surface-solid);
+    border-color: var(--tcm-theme-hairline);
+    box-shadow: none;
+  }
+
+  .science-home__projects,
+  .science-home__state,
+  .science-home__archived {
+    border-radius: 20px;
+    border-color: var(--tcm-theme-hairline);
+    box-shadow: none;
+  }
+
+  .science-home__projects {
+    padding: 8px 16px;
+  }
+
+  .science-home__project-row {
+    min-height: 80px;
+    padding-inline: 12px;
+    border-radius: 14px;
+  }
+
+  .science-home__project-copy strong {
+    font-size: var(--font-size-base);
+  }
+
+  .science-home__project-meta {
+    margin-top: 5px;
+  }
+
+  /* Existing rails retain their resize and overflow behavior. */
+  .session-sidebar {
+    background: color-mix(in srgb, var(--tcm-theme-lavender) 46%, var(--color-bg));
+    border-right-color: var(--tcm-theme-hairline);
+  }
+
+  .session-sidebar__top {
+    padding-top: 18px;
+    padding-bottom: 16px;
+  }
+
+  .session-sidebar__project strong {
+    font-family: var(--font-serif);
+    font-size: var(--font-size-large);
+    letter-spacing: 0.025em;
+  }
+
+  .session-sidebar__session,
+  .session-sidebar__action,
+  .atlas-nav-item {
+    border-radius: 12px;
+  }
+
+  .session-sidebar__action[data-selected="true"],
+  .atlas-nav-item[data-active="true"] {
+    background: var(--tcm-theme-lavender);
+    color: var(--color-text);
+  }
+
+  .session-sidebar__label,
+  .session-sidebar__group-label,
+  .atlas-section-label {
+    letter-spacing: 0.08em;
+  }
+
+  /* Readable research prose, soft question bubbles, no decoration under text. */
+  .session-empty__inner {
+    max-width: 660px;
+  }
+
+  .session-empty__title {
+    font-size: clamp(30px, 3vw, 42px);
+    margin-block: 12px;
+  }
+
+  .session-scroller [data-component="user-message"] [data-slot="user-message-content"] {
+    background: var(--tcm-theme-lavender);
+    border: 1px solid var(--tcm-theme-hairline);
+    border-radius: 20px 20px 6px 20px;
+  }
+
+  .session-scroller [data-slot="assistant-prose"] {
+    line-height: 1.85;
+  }
+
+  .session-scroller [data-slot="assistant-prose"] :is(h1, h2) {
+    font-family: var(--font-serif);
+    letter-spacing: 0.01em;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .workspace-composer,
+  .g-composer {
+    border: 1px solid var(--tcm-theme-hairline);
+    border-radius: 22px;
+    background: var(--color-surface-solid);
+    box-shadow: var(--atlas-shadow-xs);
+  }
+
+  .workspace-composer:focus-within,
+  .g-composer:focus-within {
+    border-color: var(--color-focus);
+    box-shadow: var(--color-focus-lit);
+  }
+
+  .g-card,
+  .g-card-muted,
+  .atlas-proposal,
+  [data-component="request-card"] {
+    border-radius: 18px;
+    border-color: var(--tcm-theme-hairline);
+    box-shadow: none;
+  }
+
+  .atlas-proposal,
+  [data-component="request-card"] {
+    border-left: 3px solid var(--tcm-theme-gold);
+  }
+
+  .atlas-md table,
+  .session-scroller [data-slot="assistant-prose"] table {
+    border-color: var(--tcm-theme-hairline);
+  }
+
+  .atlas-md th,
+  .session-scroller [data-slot="assistant-prose"] th {
+    background: var(--tcm-theme-lavender);
+    padding: 12px 14px;
+  }
+
+  .atlas-md td,
+  .session-scroller [data-slot="assistant-prose"] td {
+    padding: 12px 14px;
+    line-height: 1.65;
+  }
+
+  /* Higher specificity also covers Settings' dynamically mounted stylesheet. */
+  .settings-dialog {
+    --settings-radius-control: 12px;
+    --settings-radius-card: 18px;
+    --settings-radius-modal: 24px;
+    --settings-type-body: 14px;
+    --settings-type-row: 13px;
+    --settings-leading-body: 22px;
+    --settings-selection: var(--tcm-theme-lavender);
+    --settings-border: var(--tcm-theme-hairline);
+    --settings-rail: color-mix(in srgb, var(--tcm-theme-lavender) 48%, var(--color-bg));
+  }
+
+  .settings-dialog .settings-page-header h2 {
+    font-size: 28px;
+    line-height: 1.45;
+  }
+
+  .settings-dialog .settings-page-header p {
+    margin-top: 8px;
+    line-height: 1.75;
+  }
+
+  .settings-dialog [data-component="button"],
+  .settings-dialog .settings-preference-action,
+  .settings-dialog .settings-segmented-control {
+    border-radius: var(--atlas-radius-pill);
+  }
+
+  .settings-dialog .settings-card {
+    border: 1px solid var(--tcm-theme-hairline);
+    border-radius: 18px;
+    box-shadow: none;
+  }
+
+  .settings-dialog .settings-row {
+    min-height: 58px;
+  }
+}
+
+@media (max-width: 640px) {
+  html[data-theme="openscience"] {
+    .science-home__main {
+      padding: 32px 18px 48px;
+      background-image: none;
+    }
+
+    .science-home__heading {
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    [data-component="dialog"] [data-slot="dialog-header"] {
+      padding: 18px 20px 14px;
+    }
+
+    .settings-dialog .settings-page-header h2 {
+      font-size: 24px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="openscience"] :is(.science-home__project-row, .atlas-btn, [data-component="button"]) {
+    transition-duration: 0.01ms;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  html[data-theme="openscience"] .science-home__main {
+    background-image: none;
+  }
+
+  html[data-theme="openscience"] :is([data-component="button"], [data-component="request-card"]) {
+    border: 1px solid ButtonText;
+  }
+}

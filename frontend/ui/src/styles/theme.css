@@ -1,0 +1,681 @@
+:root {
+  /* Inter Variable is bundled by the workspace entrypoint. Computer Modern
+     remains the editorial serif for papers and long-form scientific output. */
+  --font-family-sans:
+    "Inter Variable", Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-sans--font-feature-settings: normal;
+  --font-family-mono:
+    "Söhne Mono", "Sohne Mono", "IBM Plex Mono", "IBM Plex Mono Fallback", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-family-mono--font-feature-settings: "ss01" 1;
+  --font-family-serif:
+    "Noto Serif SC", "Source Han Serif SC", "Songti SC", "Computer Modern", Georgia, "Times New Roman", SimSun, serif;
+  --font-family-serif--font-feature-settings: normal;
+
+  --font-size-2x-small: 10px;
+  --font-size-x-small: 11px;
+  --font-size-small: 12px;
+  --font-size-medium: 13px;
+  --font-size-base: 14px;
+  --font-size-large: 16px;
+  --font-size-x-large: 20px;
+  /* A deliberately quiet three-step scale. Inter Variable can render the
+     in-between values precisely; static fallbacks resolve to their nearest
+     available face. Keep body and controls light, and reserve emphasis for
+     real hierarchy instead of making every interactive label bold. */
+  --font-weight-regular: 380;
+  --font-weight-medium: 480;
+  --font-weight-emphasis: 500;
+  --line-height-normal: 140%;
+  --line-height-large: 150%;
+  --line-height-x-large: 180%;
+  --line-height-2x-large: 200%;
+  --letter-spacing-normal: 0;
+  --letter-spacing-tight: -0.16px;
+  --letter-spacing-tightest: -0.32px;
+  --paragraph-spacing-base: 0;
+
+  /* Motion — two durations, two easings. Hover/highlight uses fast+standard;
+     movement (popups, drawers, reveals) uses slow+out-expo. */
+  --duration-fast: 120ms;
+  --duration-slow: 200ms;
+  --ease-standard: ease;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --spacing: 0.25rem;
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+
+  --container-3xs: 16rem;
+  --container-2xs: 18rem;
+  --container-xs: 20rem;
+  --container-sm: 24rem;
+  --container-md: 28rem;
+  --container-lg: 32rem;
+  --container-xl: 36rem;
+  --container-2xl: 42rem;
+  --container-3xl: 48rem;
+  --container-4xl: 56rem;
+  --container-5xl: 64rem;
+  --container-6xl: 72rem;
+  --container-7xl: 80rem;
+
+  /* Soft scientific workbench scale. Small controls remain precise while
+     primary surfaces have enough curvature to float above the research canvas. */
+  --radius-xs: 0.5rem; /* 8px */
+  --radius-sm: 0.625rem; /* 10px */
+  --radius-md: 0.75rem; /* 12px */
+  --radius-lg: 1rem; /* 16px */
+  --radius-xl: 1.25rem; /* 20px */
+
+  --shadow-xs:
+    0 1px 2px -0.5px light-dark(hsl(0 0% 0% / 0.04), hsl(0 0% 0% / 0.06)),
+    0 0.5px 1.5px 0 light-dark(hsl(0 0% 0% / 0.025), hsl(0 0% 0% / 0.08)),
+    0 1px 3px 0 light-dark(hsl(0 0% 0% / 0.05), hsl(0 0% 0% / 0.1));
+  --shadow-md:
+    0 6px 12px -2px light-dark(hsl(0 0% 0% / 0.075), hsl(0 0% 0% / 0.1)),
+    0 4px 8px -2px light-dark(hsl(0 0% 0% / 0.075), hsl(0 0% 0% / 0.15)),
+    0 1px 2px light-dark(hsl(0 0% 0% / 0.1), hsl(0 0% 0% / 0.15));
+  --shadow-lg:
+    0 16px 48px -6px light-dark(hsl(0 0% 0% / 0.05), hsl(0 0% 0% / 0.15)),
+    0 6px 12px -2px light-dark(hsl(0 0% 0% / 0.025), hsl(0 0% 0% / 0.1)),
+    0 1px 2.5px light-dark(hsl(0 0% 0% / 0.025), hsl(0 0% 0% / 0.1));
+  --shadow-xxs-border: 0 0 0 0.5px var(--border-weak-base, rgba(0, 0, 0, 0.07));
+  --shadow-xs-border:
+    0 0 0 1px var(--border-base, rgba(11, 6, 0, 0.2)), 0 1px 2px -1px rgba(19, 16, 16, 0.04),
+    0 1px 2px 0 rgba(19, 16, 16, 0.06), 0 1px 3px 0 rgba(19, 16, 16, 0.08);
+  --shadow-xs-border-base:
+    0 0 0 1px var(--border-weak-base, rgba(17, 0, 0, 0.12)), 0 1px 2px -1px rgba(19, 16, 16, 0.04),
+    0 1px 2px 0 rgba(19, 16, 16, 0.06), 0 1px 3px 0 rgba(19, 16, 16, 0.08);
+  --shadow-xs-border-select:
+    0 0 0 3px var(--border-weak-selected, rgba(1, 103, 255, 0.29)),
+    0 0 0 1px var(--border-selected, rgba(0, 74, 255, 0.99)), 0 1px 2px -1px rgba(19, 16, 16, 0.25),
+    0 1px 2px 0 rgba(19, 16, 16, 0.08), 0 1px 3px 0 rgba(19, 16, 16, 0.12);
+  --shadow-xs-border-focus:
+    0 0 0 1px var(--border-base, rgba(11, 6, 0, 0.2)), 0 1px 2px -1px rgba(19, 16, 16, 0.25),
+    0 1px 2px 0 rgba(19, 16, 16, 0.08), 0 1px 3px 0 rgba(19, 16, 16, 0.12), 0 0 0 2px var(--background-weak, #f1f0f0),
+    0 0 0 3px var(--border-selected, rgba(0, 74, 255, 0.99));
+  --shadow-xs-border-hover:
+    0 0 0 1px var(--border-weak-selected, rgba(0, 112, 255, 0.22)), 0 1px 2px -1px rgba(19, 16, 16, 0.04),
+    0 1px 2px 0 rgba(19, 16, 16, 0.06), 0 1px 3px 0 rgba(19, 16, 16, 0.08);
+  --shadow-xs-border-critical-base: 0 0 0 1px var(--border-critical-selected, #fc543a);
+  --shadow-xs-border-critical-focus:
+    0 0 0 3px var(--border-critical-weak, rgba(251, 34, 0, 0.18)), 0 0 0 1px var(--border-critical-selected, #fc543a),
+    0 1px 2px -1px rgba(19, 16, 16, 0.25), 0 1px 2px 0 rgba(19, 16, 16, 0.08), 0 1px 3px 0 rgba(19, 16, 16, 0.12);
+  --shadow-lg-border-base:
+    0 0 0 1px var(--border-weak-base), 0 14px 48px -16px light-dark(rgb(48 49 64 / 0.16), rgb(0 0 0 / 0.42));
+
+  color-scheme: light;
+  --text-mix-blend-mode: multiply;
+
+  /* State aliases — mode-agnostic (they resolve through mode-aware tokens).
+     These names are consumed by switch/checkbox/button/toast CSS; without them
+     the declarations were invalid and the states rendered transparent. */
+  --surface-hover: var(--surface-base-hover);
+  --surface-focus: var(--border-selected);
+  --surface-disabled: var(--input-disabled);
+  --text-error: var(--text-on-critical-base);
+  --border-error: var(--border-critical-base);
+  --text-invert-stronger: var(--text-invert-strong);
+  --color-primary: var(--surface-brand-base);
+
+  /* OpenScience fallback variables (light) */
+  --background-base: #f9f8f3;
+  --background-weak: #f0eef2;
+  --background-strong: #fcfbf7;
+  --background-stronger: #fffefb;
+  --surface-base: #f9f8f3;
+  --base: #f9f8f3;
+  --surface-base-hover: #eeeaf2;
+  --surface-base-active: #e6e1ed;
+  --surface-base-interactive-active: #e6e1ed;
+  --base2: #f9f8f3;
+  --base3: #f9f8f3;
+  --surface-inset-base: #f3f1f3;
+  --surface-inset-base-hover: #eeeaf2;
+  --surface-inset-strong: #eeeaf2;
+  --surface-inset-strong-hover: #e6e1ed;
+  --surface-raised-base: #fffefb;
+  --surface-float-base: #303140;
+  --surface-float-base-hover: #454559;
+  --surface-raised-base-hover: #f3f0f6;
+  --surface-raised-base-active: #eeeaf2;
+  --surface-raised-strong: #fcfbf7;
+  --surface-raised-strong-hover: #fffefb;
+  --surface-raised-stronger: #fffefb;
+  --surface-raised-stronger-hover: #fffefb;
+  --surface-weak: #eeeaf2;
+  --surface-weaker: #e6e1ed;
+  --surface-strong: #fffefb;
+  --surface-raised-stronger-non-alpha: #fffefb;
+  --surface-brand-base: #303140;
+  --surface-brand-hover: #454559;
+  --surface-interactive-base: #eeeaf2;
+  --surface-interactive-hover: #e3dfea;
+  --surface-interactive-weak: #f4f2f7;
+  --surface-interactive-weak-hover: #eeeaf2;
+  --surface-success-base: #e1f0e5;
+  --surface-success-weak: #eff8f1;
+  --surface-success-strong: #3f7a55;
+  --surface-warning-base: #f6e9d9;
+  --surface-warning-weak: #fcf4ea;
+  --surface-warning-strong: #9a6a22;
+  --surface-critical-base: #ffe3e0;
+  --surface-critical-weak: #fff0ee;
+  --surface-critical-strong: #b54d4a;
+  --surface-info-base: #e6ecf2;
+  --surface-info-weak: #f2f5f9;
+  --surface-info-strong: #5a6e82;
+  --surface-diff-unchanged-base: #ffffff00;
+  --surface-diff-skip-base: #f8f8f8;
+  --surface-diff-hidden-base: #ebebeb;
+  --surface-diff-hidden-weak: #f5f5f5;
+  --surface-diff-hidden-weaker: #fcfcfc;
+  --surface-diff-hidden-strong: #cecece;
+  --surface-diff-hidden-stronger: #1f1f1f;
+  --surface-diff-add-base: #e1f0e5;
+  --surface-diff-add-weak: #eff8f1;
+  --surface-diff-add-weaker: #f8fef9;
+  --surface-diff-add-strong: #bbd6c3;
+  --surface-diff-add-stronger: #3f7a55;
+  --surface-diff-delete-base: #ffe3e0;
+  --surface-diff-delete-weak: #fff0ee;
+  --surface-diff-delete-weaker: #fff8f7;
+  --surface-diff-delete-strong: #e7a8a3;
+  --surface-diff-delete-stronger: #b54d4a;
+  --input-base: #fffefb;
+  --input-hover: #f5f3f7;
+  --input-active: #fffefb;
+  --input-selected: #e3dfea;
+  --input-focus: #fffefb;
+  --input-disabled: #efedf0;
+  --text-base: #434453;
+  --text-weak: #686674;
+  --text-weaker: #716e7c;
+  --text-strong: #303140;
+  --text-invert-base: #f9f8f3;
+  --text-invert-weak: #f2f2f2;
+  --text-invert-weaker: #ebebeb;
+  --text-invert-strong: #fffefb;
+  --text-interactive-base: #62607c;
+  --text-on-brand-base: #f9f8f3;
+  --text-on-interactive-base: #303140;
+  --text-on-interactive-weak: #686674;
+  --text-on-success-base: #4e8963;
+  --text-on-critical-base: #c65c58;
+  --text-on-critical-weak: #c96e69;
+  --text-on-critical-strong: #4b0002;
+  --text-on-warning-base: #6c6c6c;
+  --text-on-info-base: #6c6c6c;
+  --text-diff-add-base: #2b6241;
+  --text-diff-delete-base: #c65c58;
+  --text-diff-delete-strong: #4b0002;
+  --text-diff-add-strong: #002b11;
+  --text-on-info-weak: #888888;
+  --text-on-info-strong: #191919;
+  --text-on-warning-weak: #888888;
+  --text-on-warning-strong: #191919;
+  --text-on-success-weak: #a4c4ad;
+  --text-on-success-strong: #002b11;
+  --text-on-brand-weak: #f9f8f3;
+  --text-on-brand-weaker: #f9f8f3;
+  --text-on-brand-strong: #f9f8f3;
+  --button-primary-base: #303140;
+  --button-secondary-base: #eeeaf2;
+  --button-secondary-hover: #e3dfea;
+  --border-base: #30314026;
+  --border-hover: #30314040;
+  --border-active: #888888;
+  --border-selected: #79758e;
+  --border-disabled: #b8b8b8;
+  --border-focus: #79758e;
+  /* Focus lighting for text entry. A flat accent stroke around a field reads as
+     a validation error; light does not arrive as a hard edge. The four layers
+     stack into one falloff — a highlight where the light lands on the top edge,
+     a hairline, then two widening washes — so a focused field looks lit rather
+     than outlined. Light mode grounds the falloff in ink, because a white wash
+     is invisible on a white surface. */
+  --focus-lit-edge: rgba(255, 255, 255, 0.9);
+  --focus-lit-ring: rgba(30, 30, 27, 0.18);
+  --focus-lit-wash: rgba(30, 30, 27, 0.07);
+  --focus-lit-bloom: rgba(30, 30, 27, 0.05);
+  --focus-lit:
+    inset 0 1px 0 var(--focus-lit-edge), 0 0 0 1px var(--focus-lit-ring), 0 0 0 4px var(--focus-lit-wash),
+    0 0 16px 1px var(--focus-lit-bloom);
+  /* The halo behind an unframed field — one whose box is the glyphs themselves,
+     so nothing can be drawn on the box without landing on the text. Its crisp
+     edge is an outline instead, the only ring CSS lets you hold off the box
+     (outline-offset), which is what the accent stroke used before. This is just
+     the light spilling past it. */
+  --focus-lit-halo: 0 0 0 5px var(--focus-lit-wash), 0 0 16px 4px var(--focus-lit-bloom);
+  --border-weak-base: #30314017;
+  --border-strong-base: #30314059;
+  --border-strong-hover: #b8b8b8;
+  --border-strong-active: #cacaca;
+  --border-strong-selected: rgba(186, 186, 186, 0.6);
+  --border-strong-disabled: #d7d7d7;
+  --border-strong-focus: #cacaca;
+  --border-weak-hover: #30314026;
+  --border-weak-active: #cacaca;
+  --border-weak-selected: rgba(206, 206, 206, 0.5);
+  --border-weak-disabled: #d7d7d7;
+  --border-weak-focus: #cacaca;
+  --border-interactive-base: #adacc2;
+  --border-interactive-hover: #8b889e;
+  --border-interactive-active: #68647e;
+  --border-interactive-selected: #68647e;
+  --border-interactive-disabled: #b7b7b7;
+  --border-interactive-focus: #68647e;
+  --border-success-base: #a4c4ad;
+  --border-success-hover: #87b094;
+  --border-success-selected: #3f7a55;
+  --border-warning-base: #d2b592;
+  --border-warning-hover: #c19e71;
+  --border-warning-selected: #9a6a22;
+  --border-critical-base: #e7a8a3;
+  --border-critical-hover: #da8d87;
+  --border-critical-selected: #b54d4a;
+  --border-info-base: #b0bcc8;
+  --border-info-hover: #98a7b6;
+  --border-info-selected: #5a6e82;
+  --icon-base: #777480;
+  --icon-hover: #555365;
+  --icon-active: #303140;
+  --icon-selected: #303140;
+  --icon-disabled: #a9a6b0;
+  --icon-focus: #303140;
+  --icon-invert-base: #f9f8f3;
+  --icon-weak-base: #cacaca;
+  --icon-weak-hover: #cacaca;
+  --icon-weak-active: #b7b7b7;
+  --icon-weak-selected: #868686;
+  --icon-weak-disabled: #d7d7d7;
+  --icon-weak-focus: #868686;
+  --icon-strong-base: #303140;
+  --icon-strong-hover: #454559;
+  --icon-strong-active: #252632;
+  --icon-strong-selected: #303140;
+  --icon-strong-disabled: #b7b7b7;
+  --icon-strong-focus: #454559;
+  --icon-brand-base: #303140;
+  --icon-interactive-base: #62607c;
+  --icon-success-base: #87b094;
+  --icon-success-hover: #689a79;
+  --icon-success-active: #2b6241;
+  --icon-warning-base: #c19e71;
+  --icon-warning-hover: #ad834c;
+  --icon-warning-active: #764b00;
+  --icon-critical-base: #c65c58;
+  --icon-critical-hover: #8f3030;
+  --icon-critical-active: #4b0002;
+  --icon-info-base: #98a7b6;
+  --icon-info-hover: #7d8ea0;
+  --icon-info-active: #45576a;
+  --icon-on-brand-base: #f9f8f3;
+  --icon-on-brand-hover: #f9f8f3;
+  --icon-on-brand-selected: #f9f8f3;
+  --icon-on-interactive-base: #303140;
+  --icon-agent-plan-base: #5a6e82;
+  --icon-agent-docs-base: #9a6a22;
+  --icon-agent-ask-base: #1f1f1f;
+  --icon-agent-build-base: #1f1f1f;
+  --icon-on-success-base: rgba(63, 122, 85, 0.9);
+  --icon-on-success-hover: rgba(78, 137, 99, 0.9);
+  --icon-on-success-selected: rgba(43, 98, 65, 0.9);
+  --icon-on-warning-base: rgba(154, 106, 34, 0.9);
+  --icon-on-warning-hover: rgba(170, 121, 51, 0.9);
+  --icon-on-warning-selected: rgba(118, 75, 0, 0.9);
+  --icon-on-critical-base: rgba(181, 77, 74, 0.9);
+  --icon-on-critical-hover: rgba(198, 92, 88, 0.9);
+  --icon-on-critical-selected: rgba(143, 48, 48, 0.9);
+  --icon-on-info-base: #5a6e82;
+  --icon-on-info-hover: rgba(104, 125, 145, 0.9);
+  --icon-on-info-selected: rgba(69, 87, 106, 0.9);
+  --icon-diff-add-base: #2b6241;
+  --icon-diff-add-hover: #002b11;
+  --icon-diff-add-active: #002b11;
+  --icon-diff-delete-base: #c65c58;
+  --icon-diff-delete-hover: #8f3030;
+  --icon-diff-modified-base: #c19e71;
+  --syntax-comment: var(--text-weak);
+  --syntax-regexp: var(--text-base);
+  --syntax-string: #3f7a55;
+  --syntax-keyword: #77708a;
+  --syntax-primitive: #9a6a22;
+  --syntax-operator: #686674;
+  --syntax-variable: var(--text-strong);
+  --syntax-property: #546d83;
+  --syntax-type: #62607c;
+  --syntax-constant: #8b5f36;
+  --syntax-punctuation: var(--text-base);
+  --syntax-object: var(--text-strong);
+  --syntax-success: #4e8963;
+  --syntax-warning: #aa7933;
+  --syntax-critical: #c65c58;
+  --syntax-info: #5a6e82;
+  --syntax-diff-add: #2b6241;
+  --syntax-diff-delete: #8f3030;
+  --syntax-diff-unknown: #ff0000;
+  --markdown-heading: #303140;
+  --markdown-text: #434453;
+  --markdown-link: #62607c;
+  --markdown-link-text: #62607c;
+  --markdown-code: #303140;
+  --markdown-block-quote: #686674;
+  --markdown-emph: #434453;
+  --markdown-strong: #303140;
+  --markdown-horizontal-rule: #dedbe4;
+  --markdown-list-item: #686674;
+  --markdown-list-enumeration: #686674;
+  --markdown-image: #62607c;
+  --markdown-image-text: #5a6e82;
+  --markdown-code-block: #434453;
+  --border-color: #ffffff;
+  --border-weaker-base: #3031400d;
+  --border-weaker-hover: #e7e7e7;
+  --border-weaker-active: #d7d7d7;
+  --border-weaker-selected: rgba(222, 222, 222, 0.4);
+  --border-weaker-disabled: #f7f7f7;
+  --border-weaker-focus: #d7d7d7;
+  --button-ghost-hover: #f3f0f6;
+  --button-ghost-hover2: #eeeaf2;
+  --avatar-background-pink: #feeef8;
+  --avatar-background-mint: #e1fbf4;
+  --avatar-background-orange: #fff1e7;
+  --avatar-background-purple: #f9f1fe;
+  --avatar-background-cyan: #e7f9fb;
+  --avatar-background-lime: #eefadc;
+  --avatar-text-pink: #cd1d8d;
+  --avatar-text-mint: #147d6f;
+  --avatar-text-orange: #ed5f00;
+  --avatar-text-purple: #8445bc;
+  --avatar-text-cyan: #0894b3;
+  --avatar-text-lime: #5d770d;
+
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+    --text-mix-blend-mode: plus-lighter;
+
+    /* OpenScience fallback variables (dark) */
+    --background-base: #191919;
+    --background-weak: #1f1f1f;
+    --background-strong: #1c1c1c;
+    --background-stronger: #232323;
+    --surface-base: #ffffff08;
+    --base: #ffffff08;
+    --surface-base-hover: #ffffff10;
+    --surface-base-active: #ffffff17;
+    --surface-base-interactive-active: #ffffff26;
+    --base2: #ffffff08;
+    --base3: #ffffff08;
+    --surface-inset-base: #161616;
+    --surface-inset-base-hover: #1b1b1b;
+    --surface-inset-strong: #141414;
+    --surface-inset-strong-hover: #191919;
+    --surface-raised-base: #ffffff08;
+    --surface-float-base: #272727;
+    --surface-float-base-hover: #2e2e2e;
+    --surface-raised-base-hover: #ffffff10;
+    --surface-raised-base-active: #ffffff17;
+    --surface-raised-strong: #242424;
+    --surface-raised-strong-hover: #2b2b2b;
+    --surface-raised-stronger: #292929;
+    --surface-raised-stronger-hover: #313131;
+    --surface-weak: #ffffff0a;
+    --surface-weaker: #ffffff10;
+    --surface-strong: #2e2e2e;
+    --surface-raised-stronger-non-alpha: #242424;
+    --surface-brand-base: #d9d9d9;
+    --surface-brand-hover: #e8e8e8;
+    --surface-interactive-base: #2a2a2a;
+    --surface-interactive-hover: #333333;
+    --surface-interactive-weak: #242424;
+    --surface-interactive-weak-hover: #2a2a2a;
+    --surface-success-base: #233127;
+    --surface-success-weak: #1e2921;
+    --surface-success-strong: #7cb187;
+    --surface-warning-base: #372f21;
+    --surface-warning-weak: #2c271e;
+    --surface-warning-strong: #c9a25b;
+    --surface-critical-base: #3a2726;
+    --surface-critical-weak: #2f2221;
+    --surface-critical-strong: #d97b76;
+    --surface-info-base: #26292d;
+    --surface-info-weak: #212427;
+    --surface-info-strong: #9aa9b8;
+    --surface-diff-unchanged-base: #191919;
+    --surface-diff-skip-base: #1c1c1c;
+    --surface-diff-hidden-base: #262626;
+    --surface-diff-hidden-weak: #212121;
+    --surface-diff-hidden-weaker: #2a2a2a;
+    --surface-diff-hidden-strong: #333333;
+    --surface-diff-hidden-stronger: #aeaeae;
+    --surface-diff-add-base: #233127;
+    --surface-diff-add-weak: #2a3a2e;
+    --surface-diff-add-weaker: #233127;
+    --surface-diff-add-strong: #35503c;
+    --surface-diff-add-stronger: #8cbc95;
+    --surface-diff-delete-base: #3a2726;
+    --surface-diff-delete-weak: #462e2c;
+    --surface-diff-delete-weaker: #3a2726;
+    --surface-diff-delete-strong: #593734;
+    --surface-diff-delete-stronger: #ea938d;
+    --input-base: #232323;
+    --input-hover: #292929;
+    --input-active: #2c2c2c;
+    --input-selected: #333333;
+    --input-focus: #2c2c2c;
+    --input-disabled: #1f1f1f;
+    --text-base: #d6d6d6;
+    --text-weak: #a8a8a8;
+    --text-weaker: #8c8c8c;
+    --text-strong: #f2f2f2;
+    --text-invert-base: #c4c4c4;
+    --text-invert-weak: #7a7a7a;
+    --text-invert-weaker: #696969;
+    --text-invert-strong: #f2f2f2;
+    --text-interactive-base: #9fb7d0;
+    --text-on-brand-base: #111111;
+    --text-on-interactive-base: #f2f2f2;
+    --text-on-interactive-weak: #b7b7b7;
+    --text-on-success-base: #7cb187;
+    --text-on-critical-base: #d97b76;
+    --text-on-critical-weak: #a75b57;
+    --text-on-critical-strong: #ffd6d1;
+    --text-on-warning-base: #b7b7b7;
+    --text-on-info-base: #b7b7b7;
+    --text-diff-add-base: #8cbc95;
+    --text-diff-delete-base: #d97b76;
+    --text-diff-delete-strong: #ffd6d1;
+    --text-diff-add-strong: #56805f;
+    --text-on-info-weak: #656565;
+    --text-on-info-strong: #f0f0f0;
+    --text-on-warning-weak: #656565;
+    --text-on-warning-strong: #f0f0f0;
+    --text-on-success-weak: #56805f;
+    --text-on-success-strong: #d1f2d7;
+    --text-on-brand-weak: #111111;
+    --text-on-brand-weaker: #111111;
+    --text-on-brand-strong: #111111;
+    --button-primary-base: var(--smoke-dark-12);
+    --button-secondary-base: #242424;
+    --button-secondary-hover: #2e2e2e;
+    --border-base: #ffffff2e;
+    --border-hover: #ffffff3d;
+    --border-active: #656565;
+    --border-selected: #8c8c8c;
+    --border-disabled: #515151;
+    --border-focus: #8c8c8c;
+    /* On a dark surface the falloff is the light itself, so every layer is white. */
+    --focus-lit-edge: rgba(255, 255, 255, 0.26);
+    --focus-lit-ring: rgba(255, 255, 255, 0.2);
+    --focus-lit-wash: rgba(255, 255, 255, 0.07);
+    --focus-lit-bloom: rgba(255, 255, 255, 0.06);
+    --border-weak-base: #ffffff14;
+    --border-strong-base: #ffffff4d;
+    --border-strong-hover: #515151;
+    --border-strong-active: #515151;
+    --border-strong-selected: rgba(66, 66, 66, 0.6);
+    --border-strong-disabled: #272727;
+    --border-strong-focus: #515151;
+    --border-weak-hover: #ffffff22;
+    --border-weak-active: #515151;
+    --border-weak-selected: rgba(51, 51, 51, 0.6);
+    --border-weak-disabled: #272727;
+    --border-weak-focus: #515151;
+    --border-interactive-base: #585858;
+    --border-interactive-hover: #747474;
+    --border-interactive-active: #d9d9d9;
+    --border-interactive-selected: #d9d9d9;
+    --border-interactive-disabled: #696969;
+    --border-interactive-focus: #d9d9d9;
+    --border-success-base: #2e4a34;
+    --border-success-hover: #406147;
+    --border-success-selected: #7cb187;
+    --border-warning-base: #533f19;
+    --border-warning-hover: #6c5426;
+    --border-warning-selected: #c9a25b;
+    --border-critical-base: #4d2624;
+    --border-critical-hover: #804441;
+    --border-critical-selected: #d97b76;
+    --border-info-base: #3c434b;
+    --border-info-hover: #505963;
+    --border-info-selected: #9aa9b8;
+    --icon-base: #a8a8a8;
+    --icon-hover: #d6d6d6;
+    --icon-active: #f2f2f2;
+    --icon-selected: #f2f2f2;
+    --icon-disabled: #666666;
+    --icon-focus: #f2f2f2;
+    --icon-invert-base: #111111;
+    --icon-weak-base: #808080;
+    --icon-weak-hover: #999999;
+    --icon-weak-active: #a8a8a8;
+    --icon-weak-selected: #d6d6d6;
+    --icon-weak-disabled: #5c5c5c;
+    --icon-weak-focus: #a8a8a8;
+    --icon-strong-base: #f2f2f2;
+    --icon-strong-hover: #f6f3f3;
+    --icon-strong-active: #fcfcfc;
+    --icon-strong-selected: #fdfcfc;
+    --icon-strong-disabled: #696969;
+    --icon-strong-focus: #fdfcfc;
+    --icon-brand-base: #d9d9d9;
+    --icon-interactive-base: #d9d9d9;
+    --icon-success-base: #7cb187;
+    --icon-success-hover: #93c19c;
+    --icon-success-active: #aad1b1;
+    --icon-warning-base: #c9a25b;
+    --icon-warning-hover: #d6b371;
+    --icon-warning-active: #e2c489;
+    --icon-critical-base: #d97b76;
+    --icon-critical-hover: #e8928d;
+    --icon-critical-active: #f2aaa5;
+    --icon-info-base: #9aa9b8;
+    --icon-info-hover: #adbac7;
+    --icon-info-active: #c0cbd6;
+    --icon-on-brand-base: #111111;
+    --icon-on-brand-hover: #111111;
+    --icon-on-brand-selected: #111111;
+    --icon-on-interactive-base: #f2f2f2;
+    --icon-agent-plan-base: #9aa9b8;
+    --icon-agent-docs-base: #c9a25b;
+    --icon-agent-ask-base: #d9d9d9;
+    --icon-agent-build-base: #aeaeae;
+    --icon-on-success-base: rgba(124, 177, 135, 0.9);
+    --icon-on-success-hover: rgba(109, 161, 120, 0.9);
+    --icon-on-success-selected: rgba(140, 188, 149, 0.9);
+    --icon-on-warning-base: rgba(201, 162, 91, 0.9);
+    --icon-on-warning-hover: rgba(185, 146, 75, 0.9);
+    --icon-on-warning-selected: rgba(203, 168, 106, 0.9);
+    --icon-on-critical-base: rgba(217, 123, 118, 0.9);
+    --icon-on-critical-hover: rgba(200, 108, 103, 0.9);
+    --icon-on-critical-selected: rgba(234, 147, 141, 0.9);
+    --icon-on-info-base: #9aa9b8;
+    --icon-on-info-hover: rgba(139, 154, 168, 0.9);
+    --icon-on-info-selected: rgba(162, 176, 189, 0.9);
+    --icon-diff-add-base: #8cbc95;
+    --icon-diff-add-hover: #6da178;
+    --icon-diff-add-active: #8cbc95;
+    --icon-diff-delete-base: #d97b76;
+    --icon-diff-delete-hover: #c86c67;
+    --icon-diff-modified-base: #6c5426;
+    --syntax-comment: var(--text-weak);
+    --syntax-regexp: var(--text-base);
+    --syntax-string: #7cb187;
+    --syntax-keyword: #b39dc0;
+    --syntax-primitive: #c9a25b;
+    --syntax-operator: #a8a8a8;
+    --syntax-variable: var(--text-strong);
+    --syntax-property: #9fb7d0;
+    --syntax-type: #9aa9b8;
+    --syntax-constant: #c39364;
+    --syntax-punctuation: var(--text-weak);
+    --syntax-object: var(--text-strong);
+    --syntax-success: #6da178;
+    --syntax-warning: #b9924b;
+    --syntax-critical: #c86c67;
+    --syntax-info: #9aa9b8;
+    --syntax-diff-add: #8cbc95;
+    --syntax-diff-delete: #ea938d;
+    --syntax-diff-unknown: #ff0000;
+    --markdown-heading: #f2f2f2;
+    --markdown-text: #d6d6d6;
+    --markdown-link: #9fb7d0;
+    --markdown-link-text: #9fb7d0;
+    --markdown-code: #e6e6e6;
+    --markdown-block-quote: #a8a8a8;
+    --markdown-emph: #d6d6d6;
+    --markdown-strong: #f2f2f2;
+    --markdown-horizontal-rule: #3a3a3a;
+    --markdown-list-item: #a8a8a8;
+    --markdown-list-enumeration: #a8a8a8;
+    --markdown-image: #9fb7d0;
+    --markdown-image-text: #9aa9b8;
+    --markdown-code-block: #d6d6d6;
+    --border-color: #ffffff;
+    --border-weaker-base: #ffffff0a;
+    --border-weaker-hover: #ffffff12;
+    --border-weaker-active: #ffffff1c;
+    --border-weaker-selected: rgba(36, 36, 36, 0.3);
+    --border-weaker-disabled: #ffffff06;
+    --border-weaker-focus: #272727;
+    --button-ghost-hover: #ffffff0a;
+    --button-ghost-hover2: #ffffff10;
+    --avatar-background-pink: #501b3f;
+    --avatar-background-mint: #033a34;
+    --avatar-background-orange: #5f2a06;
+    --avatar-background-purple: #432155;
+    --avatar-background-cyan: #0f3058;
+    --avatar-background-lime: #2b3711;
+    --avatar-text-pink: #e34ba9;
+    --avatar-text-mint: #95f3d9;
+    --avatar-text-orange: #ff802b;
+    --avatar-text-purple: #9d5bd2;
+    --avatar-text-cyan: #369eff;
+    --avatar-text-lime: #c4f042;
+  }
+}
+
+/* The in-app theme toggle writes data-color-scheme onto <html>; the
+   prefers-color-scheme block above cannot see it. Restate the focus falloff for
+   both explicit choices, so a dark app on a light OS is lit with white rather
+   than ink — and the reverse. */
+html[data-color-scheme="dark"] {
+  --focus-lit-edge: rgba(255, 255, 255, 0.26);
+  --focus-lit-ring: rgba(255, 255, 255, 0.2);
+  --focus-lit-wash: rgba(255, 255, 255, 0.07);
+  --focus-lit-bloom: rgba(255, 255, 255, 0.06);
+}
+
+html[data-color-scheme="light"] {
+  --focus-lit-edge: rgba(255, 255, 255, 0.9);
+  --focus-lit-ring: rgba(30, 30, 27, 0.18);
+  --focus-lit-wash: rgba(30, 30, 27, 0.07);
+  --focus-lit-bloom: rgba(30, 30, 27, 0.05);
+}

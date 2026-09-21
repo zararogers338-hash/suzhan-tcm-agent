@@ -1,0 +1,270 @@
+import type {
+  Event,
+  createOpenScienceClient,
+  Project,
+  Permission,
+  UserMessage,
+  Message,
+  Part,
+  Auth,
+  Config,
+} from "@synsci/sdk"
+import type { Model, Provider } from "@synsci/sdk/v2"
+
+import type { BunShell } from "./shell.js"
+import { type ToolDefinition } from "./tool.js"
+import type { Connector } from "./connector.js"
+
+export * from "./tool.js"
+export type * from "./connector.js"
+
+export type ProviderContext = {
+  source: "env" | "config" | "custom" | "api"
+  info: Provider
+  options: Record<string, any>
+}
+
+export type PluginInput = {
+  client: ReturnType<typeof createOpenScienceClient>
+  project: Project
+  directory: string
+  worktree: string
+  serverUrl: URL
+  $: BunShell
+  /** Aborted when this instance unloads the plugin. Older hosts may omit it. */
+  signal?: AbortSignal
+}
+
+export type Plugin = (input: PluginInput) => Promise<Hooks>
+
+export type AuthHook = {
+  provider: string
+  loader?: (auth: () => Promise<Auth>, provider: Provider) => Promise<Record<string, any>>
+  methods: (
+    | {
+        type: "oauth"
+        label: string
+        prompts?: Array<
+          | {
+              type: "text"
+              key: string
+              message: string
+              placeholder?: string
+              validate?: (value: string) => string | undefined
+              condition?: (inputs: Record<string, string>) => boolean
+            }
+          | {
+              type: "select"
+              key: string
+              message: string
+              options: Array<{
+                label: string
+                value: string
+                hint?: string
+              }>
+              condition?: (inputs: Record<string, string>) => boolean
+            }
+        >
+        authorize(inputs?: Record<string, string>): Promise<AuthOuathResult>
+      }
+    | {
+        type: "api"
+        label: string
+        prompts?: Array<
+          | {
+              type: "text"
+              key: string
+              message: string
+              placeholder?: string
+              validate?: (value: string) => string | undefined
+              condition?: (inputs: Record<string, string>) => boolean
+            }
+          | {
+              type: "select"
+              key: string
+              message: string
+              options: Array<{
+                label: string
+                value: string
+                hint?: string
+              }>
+              condition?: (inputs: Record<string, string>) => boolean
+            }
+        >
+        authorize?(inputs?: Record<string, string>): Promise<
+          | {
+              type: "success"
+              key: string
+              provider?: string
+            }
+          | {
+              type: "failed"
+            }
+        >
+      }
+  )[]
+}
+
+export type AuthOuathResult = { url: string; instructions: string } & (
+  | {
+      method: "auto"
+      callback(): Promise<
+        | ({
+            type: "success"
+            provider?: string
+          } & (
+            | {
+                refresh: string
+                access: string
+                expires: number
+                accountId?: string
+              }
+            | { key: string }
+          ))
+        | {
+            type: "failed"
+          }
+      >
+    }
+  | {
+      method: "code"
+      callback(code: string): Promise<
+        | ({
+            type: "success"
+            provider?: string
+          } & (
+            | {
+                refresh: string
+                access: string
+                expires: number
+                accountId?: string
+              }
+            | { key: string }
+          ))
+        | {
+            type: "failed"
+          }
+      >
+    }
+)
+
+export interface Hooks {
+  /** Release resources on instance shutdown or plugin invalidation. */
+  dispose?: () => Promise<void>
+  event?: (input: { event: Event }) => Promise<void>
+  config?: (input: Config) => Promise<void>
+  tool?: {
+    [key: string]: ToolDefinition
+  }
+  /** Scientific sources available through science_list_dbs/search/fetch in this instance. */
+  connector?: Connector[]
+  auth?: AuthHook
+  /**
+   * Called when a new message is received
+   */
+  "chat.message"?: (
+    input: {
+      sessionID: string
+      agent?: string
+      model?: { providerID: string; modelID: string }
+      messageID?: string
+      variant?: string
+    },
+    output: { message: UserMessage; parts: Part[] },
+  ) => Promise<void>
+  /**
+   * Modify parameters sent to LLM
+   */
+  "chat.params"?: (
+    input: { sessionID: string; agent: string; model: Model; provider: ProviderContext; message: UserMessage },
+    output: { temperature: number; topP: number; topK: number; options: Record<string, any> },
+  ) => Promise<void>
+  "chat.headers"?: (
+    input: { sessionID: string; agent: string; model: Model; provider: ProviderContext; message: UserMessage },
+    output: { headers: Record<string, string> },
+  ) => Promise<void>
+  "permission.ask"?: (input: Permission, output: { status: "ask" | "deny" | "allow" }) => Promise<void>
+  "command.execute.before"?: (
+    input: { command: string; sessionID: string; arguments: string },
+    output: { parts: Part[] },
+  ) => Promise<void>
+  "tool.execute.before"?: (
+    input: { tool: string; sessionID: string; callID: string },
+    output: { args: any },
+  ) => Promise<void>
+  "tool.execute.after"?: (
+    input: { tool: string; sessionID: string; callID: string },
+    output: {
+      title: string
+      output: string
+      metadata: any
+    },
+  ) => Promise<void>
+  "experimental.chat.messages.transform"?: (
+    input: {},
+    output: {
+      messages: {
+        info: Message
+        parts: Part[]
+      }[]
+    },
+  ) => Promise<void>
+  "experimental.chat.system.transform"?: (
+    input: { sessionID?: string; model: Model },
+    output: {
+      system: string[]
+    },
+  ) => Promise<void>
+  /**
+   * Called before session compaction starts. Allows plugins to customize
+   * the compaction prompt.
+   *
+   * - `context`: Additional context strings appended to the default prompt
+   * - `prompt`: If set, replaces the default compaction prompt entirely
+   */
+  "experimental.session.compacting"?: (
+    input: { sessionID: string },
+    output: { context: string[]; prompt?: string },
+  ) => Promise<void>
+  "experimental.text.complete"?: (
+    input: { sessionID: string; messageID: string; partID: string },
+    output: { text: string },
+  ) => Promise<void>
+  /**
+   * Lines a plugin adds to every provider request for this session. `lines`
+   * go inside the `<env>` block of the system prompt and must be stable for
+   * the whole session (compute limits): the system prompt is the provider's
+   * cache prefix, and a line that changes between steps discards the cache
+   * for the entire context. Facts that change while the model works (time
+   * used, spend, study state, one-shot reminders) go in `status`, which is
+   * appended at the tail of the conversation for the current step only.
+   * Keep each line short.
+   */
+  "env.lines"?: (
+    input: { sessionID: string; model: Model },
+    output: { lines: string[]; status: string[] },
+  ) => Promise<void>
+  /**
+   * The model returned a final answer with no tool calls. A plugin may set
+   * `message` to inject it as a continuation and keep the loop running; the
+   * loop bounds how many times this can happen per turn.
+   */
+  "loop.before_finish"?: (
+    input: { sessionID: string; messageID: string; turn: string; injections: number },
+    output: { message?: string },
+  ) => Promise<void>
+  /**
+   * A repetition guard tripped: repeated text, an output-limit stall, or the
+   * same tool failing repeatedly. A plugin may set `message` to redirect the
+   * model instead of stopping; without one the loop stops as it always did.
+   */
+  "loop.guard"?: (
+    input: {
+      sessionID: string
+      kind: "text_loop" | "output_stall" | "tool_errors" | "repeated_call"
+      tool?: string
+      trips: number
+    },
+    output: { message?: string },
+  ) => Promise<void>
+}

@@ -1,0 +1,834 @@
+import { Slug } from "@synsci/util/slug"
+import path from "path"
+import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
+import { Decimal } from "decimal.js"
+import z from "zod"
+import { type LanguageModelUsage, type ProviderMetadata } from "ai"
+import { Identifier } from "../id/id"
+import { Installation } from "../installation"
+
+import { Storage } from "../storage/storage"
+import { createCoalescer } from "../storage/coalescer"
+import { Log } from "../util/log"
+import { MessageV2 } from "./message-v2"
+import { SessionLoopState } from "./loop-state"
+import { Instance } from "../project/instance"
+import { SessionPrompt } from "./prompt"
+import { fn } from "@synsci/util/fn"
+import { Command } from "../command"
+import { Snapshot } from "@/snapshot"
+
+import type { Provider } from "@/provider/provider"
+import { PermissionNext } from "@/permission/next"
+import { Global } from "@/global"
+import { KernelRuntime } from "@/science/kernel/registry"
+import { Project } from "@/project/project"
+import { NamedError } from "@synsci/util/error"
+import { SessionFilesystem } from "./filesystem"
+import { SessionTraceStore } from "./trace-store"
+import { UsageLogging } from "./usage-logging"
+import { SessionResearch } from "./research"
+import { AuthoritySignal } from "@/project/authority-signal"
+import { FileLease } from "@/util/file-lease"
+
+export namespace Session {
+  const log = Log.create({ service: "session" })
+  export const Workspace = z.enum(["isolated", "project"])
+  export type Workspace = z.infer<typeof Workspace>
+
+  const parentTitlePrefix = "New session - "
+  const childTitlePrefix = "Child session - "
+
+  function createDefaultTitle(isChild = false) {
+    if (!isChild) return "New session"
+    return childTitlePrefix + new Date().toISOString()
+  }
+
+  export function isDefaultTitle(title: string) {
+    if (title === "New session") return true
+    return new RegExp(
+      `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$`,
+    ).test(title)
+  }
+
+  function getForkedTitle(title: string): string {
+    const match = title.match(/^(.+) \(fork #(\d+)\)$/)
+    if (match) {
+      const base = match[1]
+      const num = parseInt(match[2], 10)
+      return `${base} (fork #${num + 1})`
+    }
+    return `${title} (fork #1)`
+  }
+
+  export const Info = z
+    .object({
+      id: Identifier.schema("session"),
+      slug: z.string(),
+      projectID: z.string(),
+      directory: z.string(),
+      workspace: Workspace.optional().describe(
+        "Default tool directory: owned scratch or the existing project directory.",
+      ),
+      parentID: Identifier.schema("session").optional(),
+      summary: z
+        .object({
+          additions: z.number(),
+          deletions: z.number(),
+          files: z.number(),
+          diffs: Snapshot.FileDiff.array().optional(),
+        })
+        .optional(),
+      title: z.string(),
+      version: z.string(),
+      time: z.object({
+        created: z.number(),
+        updated: z.number(),
+        compacting: z.number().optional(),
+        archived: z.number().optional(),
+        pinned: z.number().optional(),
+      }),
+      permission: PermissionNext.Ruleset.optional(),
+      revert: z
+        .object({
+          messageID: z.string(),
+          partID: z.string().optional(),
+          snapshot: z.string().optional(),
+          diff: z.string().optional(),
+          turns: z.number().int().nonnegative().optional(),
+          files: z.string().array().optional(),
+        })
+        .optional(),
+    })
+    .meta({
+      ref: "Session",
+    })
+  export type Info = z.output<typeof Info>
+
+  const Deletion = z.object({
+    version: z.literal(1),
+    info: Info,
+    time: z.object({ created: z.number().int().positive() }),
+  })
+  type Deletion = z.output<typeof Deletion>
+
+  const deletionKey = (projectID: string, sessionID: string) => ["session_delete", projectID, sessionID]
+  const deletionLock = (projectID: string, sessionID: string) =>
+    path.join(Global.Path.data, "session-delete", `${projectID}.${sessionID}.lock`)
+  const creationLock = (projectID: string, sessionID: string) =>
+    path.join(Global.Path.data, "session-create", `${projectID}.${sessionID}.lock`)
+
+  async function deleting(projectID: string, sessionID: string) {
+    return Storage.read<Deletion>(deletionKey(projectID, sessionID))
+      .then((value) => Deletion.parse(value))
+      .catch((error) => {
+        if (Storage.NotFoundError.isInstance(error)) return undefined
+        throw error
+      })
+  }
+
+  export const DirectoryMismatchError = NamedError.create(
+    "SessionDirectoryMismatchError",
+    z.object({
+      sessionID: Identifier.schema("session"),
+      sessionDirectory: z.string(),
+      instanceDirectory: z.string(),
+    }),
+  )
+
+  export const DirectoryImmutableError = NamedError.create(
+    "SessionDirectoryImmutableError",
+    z.object({
+      sessionID: Identifier.schema("session"),
+      directory: z.string(),
+    }),
+  )
+
+  export const WorkspaceMismatchError = NamedError.create(
+    "SessionWorkspaceMismatchError",
+    z.object({
+      sessionID: Identifier.schema("session"),
+      workspace: Workspace,
+      requested: Workspace,
+    }),
+  )
+
+  export const DeletingError = NamedError.create(
+    "SessionDeletingError",
+    z.object({ sessionID: Identifier.schema("session") }),
+  )
+
+  const validated = Instance.state(() => new Set<string>())
+
+  function current(session: Info) {
+    return Project.canonicalize(session.directory) === Project.canonicalize(Instance.directory)
+  }
+
+  function bind(session: Info) {
+    if (!current(session)) {
+      throw new DirectoryMismatchError({
+        sessionID: session.id,
+        sessionDirectory: Project.canonicalize(session.directory),
+        instanceDirectory: Project.canonicalize(Instance.directory),
+      })
+    }
+    validated().add(session.id)
+    return session
+  }
+
+  async function load(id: string) {
+    return (await Storage.read<Info>(["session", Instance.project.id, id])) as Info
+  }
+
+  async function loadOptional(key: string[]) {
+    return Storage.read<Info>(key).catch((error) => {
+      if (Storage.NotFoundError.isInstance(error)) return
+      throw error
+    })
+  }
+
+  export async function assertDirectory(id: string) {
+    if (validated().has(id)) return
+    bind(await load(id))
+  }
+
+  export const Event = {
+    Created: BusEvent.define(
+      "session.created",
+      z.object({
+        info: Info,
+      }),
+    ),
+    Updated: BusEvent.define(
+      "session.updated",
+      z.object({
+        info: Info,
+      }),
+    ),
+    Deleted: BusEvent.define(
+      "session.deleted",
+      z.object({
+        info: Info,
+      }),
+    ),
+    Diff: BusEvent.define(
+      "session.diff",
+      z.object({
+        sessionID: z.string(),
+        diff: Snapshot.FileDiff.array(),
+      }),
+    ),
+    Error: BusEvent.define(
+      "session.error",
+      z.object({
+        sessionID: z.string().optional(),
+        error: MessageV2.Assistant.shape.error,
+      }),
+    ),
+  }
+
+  export const create = fn(
+    z
+      .object({
+        id: Identifier.schema("session").optional(),
+        parentID: Identifier.schema("session").optional(),
+        title: z.string().optional(),
+        permission: Info.shape.permission,
+        workspace: Workspace.optional(),
+        workingRoot: SessionFilesystem.WorkingRoot.optional().describe(
+          "Pin relative tool paths to a connected read/write folder, or to scratch. Omit for automatic.",
+        ),
+      })
+      .optional(),
+    async (input) => {
+      return createNext({
+        id: input?.id,
+        parentID: input?.parentID,
+        directory: Instance.directory,
+        title: input?.title,
+        permission: input?.permission,
+        workspace: input?.workspace,
+        workingRoot: input?.workingRoot,
+      })
+    },
+  )
+
+  export const fork = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      messageID: Identifier.schema("message").optional(),
+    }),
+    async (input) => {
+      const original = await get(input.sessionID)
+      if (!original) throw new Error("session not found")
+      const title = getForkedTitle(original.title)
+      const session = await createNext({
+        directory: Instance.directory,
+        title,
+      })
+      const msgs = await messages({ sessionID: input.sessionID })
+      const idMap = new Map<string, string>()
+      const remap = (id: string) => idMap.get(id) ?? id
+
+      for (const msg of msgs) {
+        if (input.messageID && msg.info.id >= input.messageID) break
+        const newID = Identifier.ascending("message")
+        idMap.set(msg.info.id, newID)
+
+        // Every message id the transcript refers to moves with the copy:
+        // the compaction tail anchor, the epoch/transaction ids the loop
+        // controller keys its state by, and the parts whose ids derive from
+        // them. Copying them verbatim made the fork drop its verbatim tail
+        // and re-finalize a compaction that was already settled.
+        const info: MessageV2.Info =
+          msg.info.role === "assistant"
+            ? {
+                ...msg.info,
+                sessionID: session.id,
+                id: newID,
+                ...(msg.info.parentID && idMap.has(msg.info.parentID)
+                  ? { parentID: idMap.get(msg.info.parentID)! }
+                  : {}),
+                ...(msg.info.tailStartId ? { tailStartId: remap(msg.info.tailStartId) } : {}),
+              }
+            : {
+                ...msg.info,
+                sessionID: session.id,
+                id: newID,
+                ...(msg.info.internal ? { internal: forkInternal(msg.info.internal, remap) } : {}),
+              }
+        const cloned = await updateMessage(info)
+
+        const transaction = msg.info.role === "user" ? forkTransaction(msg.info.internal) : undefined
+        for (const part of msg.parts) {
+          await updatePart({
+            ...part,
+            id: forkPartID(part.id, [msg.info.id, ...(transaction ? [transaction] : [])], remap),
+            messageID: cloned.id,
+            sessionID: session.id,
+          })
+        }
+      }
+      return session
+    },
+  )
+
+  const DERIVED_PART_SLOTS = [
+    "breaker",
+    "breaker-reset",
+    "continuation",
+    "finalization",
+    "carrier",
+    "contract-boundary",
+  ]
+
+  function forkTransaction(internal: MessageV2.User["internal"]) {
+    return internal && "transaction" in internal ? internal.transaction : undefined
+  }
+
+  function forkInternal(
+    internal: NonNullable<MessageV2.User["internal"]>,
+    remap: (id: string) => string,
+  ): NonNullable<MessageV2.User["internal"]> {
+    if (internal.type === "prompt") return { ...internal, epoch: remap(internal.epoch) }
+    if (internal.type === "continuation") {
+      return { ...internal, epoch: remap(internal.epoch), transaction: remap(internal.transaction) }
+    }
+    return {
+      ...internal,
+      epoch: remap(internal.epoch),
+      transaction: remap(internal.transaction),
+      ...(internal.continuationID ? { continuationID: remap(internal.continuationID) } : {}),
+      ...(internal.recovery
+        ? { recovery: { ...internal.recovery, continuationID: remap(internal.recovery.continuationID) } }
+        : {}),
+    }
+  }
+
+  /** A part whose id was derived from a message id keeps that derivation
+   * against the copied id; every other part gets a fresh id. */
+  function forkPartID(id: string, keys: string[], remap: (id: string) => string) {
+    for (const key of keys) {
+      for (const slot of DERIVED_PART_SLOTS) {
+        if (SessionLoopState.partID(key, slot) === id) return SessionLoopState.partID(remap(key), slot)
+      }
+    }
+    return Identifier.ascending("part")
+  }
+
+  export const touch = fn(Identifier.schema("session"), async (sessionID) => {
+    const session = await update(sessionID, (draft) => {
+      draft.time.updated = Date.now()
+    })
+    await Project.touchActivity(session.projectID, session.time.updated).catch((error) =>
+      log.warn("project activity update failed", { error }),
+    )
+  })
+
+  export async function createNext(input: {
+    id?: string
+    title?: string
+    parentID?: string
+    directory: string
+    permission?: PermissionNext.Ruleset
+    workspace?: Workspace
+    workingRoot?: SessionFilesystem.WorkingRoot
+  }) {
+    const id = Identifier.descending("session", input.id)
+    const directory = Project.canonicalize(input.directory)
+    // Caller-supplied IDs are an idempotency key. Serialize the full
+    // storage-and-filesystem transaction across server processes so a retry
+    // cannot observe the session between its record and workspace setup.
+    await using lease = input.id ? await FileLease.acquire(creationLock(Instance.project.id, id), 60_000) : undefined
+    if (await deleting(Instance.project.id, id)) throw new DeletingError({ sessionID: id })
+    const existing = input.id
+      ? await load(id).catch((error) => {
+          if (Storage.NotFoundError.isInstance(error)) return
+          throw error
+        })
+      : undefined
+    if (existing) {
+      bind(existing)
+      if (input.workspace) {
+        const filesystem = await SessionFilesystem.snapshot(id)
+        const workspace = filesystem.workspace.mode === "legacy" ? "project" : "isolated"
+        if (workspace !== input.workspace) {
+          throw new WorkspaceMismatchError({ sessionID: id, workspace, requested: input.workspace })
+        }
+      }
+      return existing
+    }
+    if (input.parentID) await assertDirectory(input.parentID)
+    if (directory !== Project.canonicalize(Instance.directory)) {
+      throw new DirectoryMismatchError({
+        sessionID: id,
+        sessionDirectory: directory,
+        instanceDirectory: Project.canonicalize(Instance.directory),
+      })
+    }
+    const result: Info = {
+      id,
+      slug: Slug.create(),
+      version: Installation.VERSION,
+      projectID: Instance.project.id,
+      directory,
+      workspace: input.workspace ?? "isolated",
+      parentID: input.parentID,
+      title: input.title ?? createDefaultTitle(!!input.parentID),
+      permission: input.permission,
+      time: {
+        created: Date.now(),
+        updated: Date.now(),
+      },
+    }
+    await SessionFilesystem.validateProject(directory)
+    log.info("created", result)
+    await Storage.write(["session", Instance.project.id, result.id], result)
+    // No process can hold authority for a session that has not been returned
+    // or announced yet. Publishing its initial workspace as a "change" would
+    // schedule a redundant revocation that can race the session's first job.
+    // Lazy initialization of legacy sessions keeps the default revocation.
+    await SessionFilesystem.initialize(result.id, directory, {
+      revokeExisting: false,
+      workspace: result.workspace,
+      workingRoot: input.workingRoot,
+    }).catch(async (error) => {
+      await SessionFilesystem.remove(result.id).catch(() => undefined)
+      await Storage.remove(["session", Instance.project.id, result.id])
+      throw error
+    })
+    validated().add(result.id)
+    await Project.touchActivity(result.projectID, result.time.created).catch((error) =>
+      log.warn("project activity update failed", { error }),
+    )
+    Bus.publish(Event.Created, {
+      info: result,
+    })
+    Bus.publish(Event.Updated, {
+      info: result,
+    })
+    return result
+  }
+
+  export function plan(input: { slug: string; time: { created: number } }) {
+    const base = Instance.project.vcs
+      ? path.join(Instance.worktree, ".openscience", "plans")
+      : path.join(Global.Path.data, "plans")
+    return path.join(base, [input.time.created, input.slug].join("-") + ".md")
+  }
+
+  export const get = fn(Identifier.schema("session"), async (id) => {
+    return bind(await load(id))
+  })
+
+  export async function update(id: string, editor: (session: Info) => void, options?: { touch?: boolean }) {
+    const project = Instance.project
+    const session = await get(id)
+    const result = await Storage.update<Info>(["session", project.id, id], (draft) => {
+      editor(draft)
+      if (draft.directory !== session.directory) {
+        throw new DirectoryImmutableError({
+          sessionID: id,
+          directory: session.directory,
+        })
+      }
+      if (options?.touch !== false) {
+        draft.time.updated = Date.now()
+      }
+    })
+    Bus.publish(Event.Updated, {
+      info: result,
+    })
+    return result
+  }
+
+  export const diff = fn(Identifier.schema("session"), async (sessionID) => {
+    await assertDirectory(sessionID)
+    const diffs = await Storage.read<Snapshot.FileDiff[]>(["session_diff", sessionID])
+    return diffs ?? []
+  })
+
+  export const messages = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      limit: z.number().optional(),
+    }),
+    async (input) => {
+      await assertDirectory(input.sessionID)
+      // A reconnecting UI uses this endpoint as the authoritative backfill for
+      // SSE events it could not receive. Flush coalesced streaming text and
+      // reasoning first so the snapshot cannot lag behind the visible turn.
+      await flushPendingParts(input.sessionID)
+      const result = [] as MessageV2.WithParts[]
+      for await (const msg of MessageV2.stream(input.sessionID)) {
+        if (input.limit && result.length >= input.limit) break
+        result.push(msg)
+      }
+      result.reverse()
+      return result
+    },
+  )
+
+  // Session files are independent: read them in bounded parallel windows and
+  // yield in directory order.
+  const LIST_WINDOW = 32
+
+  export async function* list() {
+    const project = Instance.project
+    const keys = await Storage.list(["session", project.id])
+    for (let i = 0; i < keys.length; i += LIST_WINDOW) {
+      const loaded = await Promise.all(keys.slice(i, i + LIST_WINDOW).map((key) => loadOptional(key)))
+      for (const session of loaded) {
+        if (!session) continue
+        if (!current(session)) continue
+        yield session
+      }
+    }
+  }
+
+  export const children = fn(Identifier.schema("session"), async (parentID) => {
+    await assertDirectory(parentID)
+    const project = Instance.project
+    const result = [] as Session.Info[]
+    for (const item of await Storage.list(["session", project.id])) {
+      const session = await loadOptional(item)
+      if (!session) continue
+      if (!current(session)) continue
+      if (session.parentID !== parentID) continue
+      result.push(session)
+    }
+    return result
+  })
+
+  export const remove = fn(Identifier.schema("session"), async (sessionID) => {
+    const project = Instance.project
+    await using lease = await FileLease.acquire(deletionLock(project.id, sessionID), 60_000)
+    return await lease.during(async () => {
+      let pending = await deleting(project.id, sessionID)
+      const session = pending?.info ?? (await get(sessionID))
+      if (!current(session)) bind(session)
+      try {
+        if (!pending) {
+          // Children must finish their own tombstone/reaper lifecycle before the
+          // parent becomes unroutable.
+          for (const child of await children(sessionID)) {
+            await remove(child.id)
+          }
+          pending = {
+            version: 1,
+            info: session,
+            time: { created: Date.now() },
+          }
+          // Publish the recovery record before any destructive mutation. A
+          // failed reaper or killed deleter can therefore retry by session id.
+          await Storage.write(deletionKey(project.id, sessionID), pending)
+        }
+        // Cancellation must be visible before deletion waits for the authority
+        // lease held by a booting kernel. Otherwise that boot can become ready,
+        // run its first cell, and only then be reaped by filesystem teardown.
+        KernelRuntime.cancelSession(sessionID)
+        // Remove the routable session record before filesystem authority. A
+        // process start that wins the authority lease first is subsequently
+        // revoked; one that runs after filesystem removal cannot lazily recreate
+        // grants from a still-visible session record. The durable tombstone,
+        // unlike the old ordering, still makes cleanup retryable.
+        await Storage.remove(["session", project.id, sessionID])
+        validated().delete(sessionID)
+        const signal = await SessionFilesystem.remove(sessionID)
+        await KernelRuntime.removeSession(project.id, sessionID)
+        await Bus.publish(Event.Deleted, {
+          info: session,
+        })
+        await AuthoritySignal.settle(signal.revision)
+
+        // User data is erased only after every runtime reaper acknowledges the
+        // deletion. A crash during this phase leaves the tombstone last, so the
+        // remaining idempotent removals are retried on startup.
+        for (const msg of await Storage.list(["message", sessionID])) {
+          for (const part of await Storage.list(["part", msg.at(-1)!])) {
+            await Storage.remove(part)
+          }
+          await Storage.remove(msg)
+        }
+        await SessionTraceStore.remove(sessionID)
+        await SessionResearch.remove(sessionID)
+        await Storage.remove(deletionKey(project.id, sessionID))
+      } catch (e) {
+        log.error(e)
+        throw e
+      }
+    })
+  })
+
+  /** Resume deletions whose durable tombstone outlived a failed/killed
+   * deleter. Call only after runtime cleanup subscribers are installed. */
+  export async function resumeDeleting() {
+    const projectID = Instance.project.id
+    for (const key of await Storage.list(["session_delete", projectID])) {
+      const sessionID = key.at(-1)
+      if (sessionID) await remove(sessionID)
+    }
+  }
+
+  export const updateMessage = fn(MessageV2.Info, async (msg) => {
+    await assertDirectory(msg.sessionID)
+    await Storage.write(["message", msg.sessionID, msg.id], msg)
+    // Completing real provider work is activity. Replayed historical records
+    // keep their original timestamp; internal compaction/title bookkeeping is
+    // not a new user edit and must not reorder the project library.
+    if (msg.role === "assistant" && !msg.summary && msg.time.completed) {
+      await Project.touchActivity(Instance.project.id, msg.time.completed).catch((error) =>
+        log.warn("project activity update failed", { error }),
+      )
+    }
+    Bus.publish(MessageV2.Event.Updated, {
+      info: msg,
+    })
+    return msg
+  })
+
+  export const removeMessage = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      messageID: Identifier.schema("message"),
+    }),
+    async (input) => {
+      await assertDirectory(input.sessionID)
+      await Storage.remove(["message", input.sessionID, input.messageID])
+      MessageV2.invalidateLastID(input.sessionID)
+      Bus.publish(MessageV2.Event.Removed, {
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+      })
+      return input.messageID
+    },
+  )
+
+  export const removePart = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      messageID: Identifier.schema("message"),
+      partID: Identifier.schema("part"),
+    }),
+    async (input) => {
+      await assertDirectory(input.sessionID)
+      // A streamed text part may still have a coalesced write queued; left
+      // alone it would land after the unlink and bring the part back.
+      await partWriter.discard(input.sessionID + "/" + input.messageID + "/" + input.partID)
+      await Storage.remove(["part", input.messageID, input.partID])
+      Bus.publish(MessageV2.Event.PartRemoved, {
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+        partID: input.partID,
+      })
+      return input.partID
+    },
+  )
+
+  const UpdatePartInput = z.union([
+    MessageV2.Part,
+    z.object({
+      part: MessageV2.TextPart,
+      delta: z.string(),
+    }),
+    z.object({
+      part: MessageV2.ReasoningPart,
+      delta: z.string(),
+    }),
+  ])
+
+  const partWriter = createCoalescer<MessageV2.Part>(
+    (_key, part) => Storage.write(["part", part.messageID, part.id], part),
+    250,
+  )
+
+  export const updatePart = fn(UpdatePartInput, async (input) => {
+    const part = "delta" in input ? input.part : input
+    const delta = "delta" in input ? input.delta : undefined
+    await assertDirectory(part.sessionID)
+    // Publish immediately so the SSE stream is not gated on the disk write.
+    Bus.publish(MessageV2.Event.PartUpdated, { part, delta })
+    const key = part.sessionID + "/" + part.messageID + "/" + part.id
+    partWriter.push(key, part)
+    // Only a streaming delta rides the 250ms timer plus the idle flush; whole/synthetic
+    // parts (no delta) and the final text/reasoning-end part flush immediately.
+    const streaming = delta !== undefined && (part.type === "text" || part.type === "reasoning")
+    if (!streaming) {
+      await partWriter.flushNow(key)
+      await UsageLogging.part(part).catch(() => log.warn("could not persist trace part"))
+    }
+    return part
+  })
+
+  export const flushPendingParts = (sessionID: string) => partWriter.flushWhere((k) => k.startsWith(sessionID + "/"))
+
+  /** The cost OpenRouter reports for the request, in USD, when usage
+   * accounting was returned. It already reflects the served tier and any
+   * long-context pricing, and it is the figure the Wallet is debited from
+   * (plus the funding fee), so it outranks the catalog table. Cache-write
+   * tokens are not exposed by @openrouter/ai-sdk-provider 1.5.2: only
+   * prompt_tokens_details.cached_tokens is copied into its metadata, so a
+   * Claude cache creation still counts as plain input in the token split. */
+  function reportedCost(metadata: ProviderMetadata | undefined): number | undefined {
+    const usage = metadata?.["openrouter"]?.["usage"]
+    if (!usage || typeof usage !== "object" || Array.isArray(usage)) return
+    const cost = usage["cost"]
+    if (typeof cost !== "number" || !Number.isFinite(cost) || cost < 0) return
+    return cost
+  }
+
+  export const getUsage = fn(
+    z.object({
+      model: z.custom<Provider.Model>(),
+      tier: z.string().optional(),
+      usage: z.custom<LanguageModelUsage>(),
+      metadata: z.custom<ProviderMetadata>().optional(),
+      /** Basis points the Wallet adds to a provider-reported cost on a
+       * managed route; absent on routes the provider bills directly. */
+      fundingFeeBps: z.number().nonnegative().optional(),
+    }),
+    (input) => {
+      const cacheReadInputTokens = input.usage.cachedInputTokens ?? 0
+      const cacheWriteInputTokens = (input.metadata?.["anthropic"]?.["cacheCreationInputTokens"] ??
+        // @ts-expect-error
+        input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"] ??
+        // @ts-expect-error
+        input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"] ??
+        0) as number
+
+      const excludesCachedTokens = !!(input.metadata?.["anthropic"] || input.metadata?.["bedrock"])
+      const uncachedInputTokens = excludesCachedTokens
+        ? (input.usage.inputTokens ?? 0)
+        : (input.usage.inputTokens ?? 0) - cacheReadInputTokens - cacheWriteInputTokens
+      // OpenAI writes every uncached token of a GPT-5.6+ prompt to its cache
+      // at 1.25x the input rate and reports only the reads, so on the native
+      // route the uncached remainder is a cache write, not plain input; the
+      // catalog's write rate already carries the premium. Routes that report a
+      // cost (OpenRouter, the gateway) are settled from that figure instead.
+      const implicitWrite =
+        input.model.providerID === "openai" &&
+        cacheWriteInputTokens === 0 &&
+        (input.model.cost?.cache?.write ?? 0) > (input.model.cost?.input ?? 0) &&
+        /^gpt-(?:5\.[6-9]|[6-9])/.test(input.model.api.id.toLowerCase())
+      const adjustedInputTokens = implicitWrite ? 0 : uncachedInputTokens
+      const adjustedCacheWriteTokens = implicitWrite ? uncachedInputTokens : cacheWriteInputTokens
+      const safe = (value: number) => {
+        // Clamp non-finite AND negative values: for providers not in the
+        // excludes-cached set, `inputTokens - cacheRead - cacheWrite` can go
+        // negative when the provider already excludes cached tokens, which would
+        // otherwise flow a negative token count (and negative cost) downstream.
+        if (!Number.isFinite(value) || value < 0) return 0
+        return value
+      }
+
+      const tokens = {
+        input: safe(adjustedInputTokens),
+        output: safe(input.usage.outputTokens ?? 0),
+        reasoning: safe(input.usage?.reasoningTokens ?? 0),
+        cache: {
+          write: safe(adjustedCacheWriteTokens),
+          read: safe(cacheReadInputTokens),
+        },
+      }
+
+      // The over-200k pricing tier keys off the full prompt size, which includes
+      // cache-CREATION tokens too. Omitting cache.write meant a mostly-cache-write
+      // request that really exceeded 200k was billed at the base tier (cost
+      // under-report).
+      const modeCost = input.tier ? input.model.modes?.[input.tier]?.cost : undefined
+      const promptTokens = tokens.input + tokens.cache.read + tokens.cache.write
+      const tierCost = input.model.cost?.tiers
+        ?.filter((tier) => promptTokens > tier.threshold)
+        .sort((a, b) => b.threshold - a.threshold)[0]
+      const catalogCost = input.model.cost?.tiers?.length
+        ? (tierCost ?? input.model.cost)
+        : input.model.cost?.experimentalOver200K && promptTokens > 200_000
+          ? input.model.cost.experimentalOver200K
+          : input.model.cost
+      const modeTier = modeCost?.tiers
+        ?.filter((tier) => promptTokens > tier.threshold)
+        .sort((a, b) => b.threshold - a.threshold)[0]
+      const costInfo = modeTier ?? modeCost ?? catalogCost
+      // The gateway's own figure is what the Wallet is debited (plus the
+      // funding fee); the catalog table is the estimate for everything else.
+      const reported = reportedCost(input.metadata)
+      const cost =
+        reported === undefined
+          ? new Decimal(0)
+              .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
+              .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
+              .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
+              .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
+          : new Decimal(reported).mul(new Decimal(10_000).add(input.fundingFeeBps ?? 0)).div(10_000)
+      return {
+        cost: safe(cost.toNumber()),
+        tokens,
+      }
+    },
+  )
+
+  export class BusyError extends Error {
+    constructor(public readonly sessionID: string) {
+      super(`Session ${sessionID} is busy`)
+    }
+  }
+
+  export const initialize = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      modelID: z.string(),
+      providerID: z.string(),
+      messageID: Identifier.schema("message"),
+    }),
+    async (input) => {
+      await SessionPrompt.command({
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+        model: input.providerID + "/" + input.modelID,
+        command: Command.Default.INIT,
+        arguments: "",
+      })
+    },
+  )
+}

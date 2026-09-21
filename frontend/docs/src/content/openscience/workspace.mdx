@@ -1,0 +1,108 @@
+---
+title: "Workspace"
+description: "Find your projects, follow a conversation, and review the files OpenScience produces."
+---
+
+The desktop app and browser workspace give you the same research workflow: open a project, choose a model, and work through a question in a conversation.
+
+```bash
+openscience
+openscience ~/research/my-project
+```
+
+The first command opens the current folder; the second opens the folder you specify.
+
+## Projects and conversations
+
+A project groups related work and files. A conversation, also called a session, holds the requests and results for one task. Start a new conversation for a separate question, or reopen an existing one to continue its work.
+
+Give files descriptive names and tell OpenScience where to save outputs. A new conversation does not automatically know every detail of another conversation; refer to the relevant saved report or handoff when continuing across sessions.
+
+## Find your way around
+
+| Area | What it is for |
+| --- | --- |
+| Conversation | Requests, responses, tool activity, and results. |
+| Model picker | Choose an available model and its options. |
+| Files | Browse project documents and the current conversation's working files. |
+| Terminal | Run project commands yourself. |
+| Compute | Check analysis work and jobs. |
+| Customize | Configure model access, skills, tools, connectors, and app settings. |
+
+Use the command palette to find actions such as **Open project files**, **Open project terminal**, **Open settings**, and **New session**. On narrow windows, workspace actions may appear in a menu.
+
+## Add context
+
+Mention the input files and the outcome in your request. The file picker and attachments let you provide material directly. You can also use `@file` references where the composer offers them.
+
+```text
+Use data/samples.csv and methods/protocol.md. Check whether the sample
+labels match the protocol, and save discrepancies in results/labels.md.
+```
+
+Only refer to material you have permission to use. For large files, first ask for the schema or a bounded sample.
+
+## Follow progress and steer the task
+
+The conversation shows the agent's prose in bright text and everything it did to get there in grey beneath one header per turn: thoughts (with their text when the provider shares it), files read, searches, commands, edits, delegations and questions, in order. While the turn runs the header names the call in flight ("Reading study.json") and the list is open; when it finishes the header reads "Worked for 46m 29s" and folds the list, leaving the answer, any failed call and any question that still needs you. Open an individual row when you need a tool's inputs or output.
+
+You can send follow-up prompts while a response is running: they join the current turn and the agent answers them in order. Use the **Stop** button or Escape when you need to change direction immediately. Inspect any files already written before asking it to retry or redo the work.
+
+Use [Research controls](/openscience/agents) to choose planning, research effort, delegation, and when the agent asks for your input.
+
+## Review files and scientific results
+
+Open an output link in the conversation or choose **Files**. Supported scientific formats can display as plots, molecules, structures, or genomic views.
+
+**Project files** and **Session scratch** are different locations. They can contain files with the same name. Check the preview's location, especially when opening an older conversation, and save final deliverables to the project.
+
+Ask for a text explanation alongside a visual result: what was measured, what the axes or colors mean, and where the source data came from. See [Files and storage](/openscience/files).
+
+## Undo and restore
+
+After a response finishes, use **Undo from here** to return to an earlier point. Review the confirmation, which identifies affected work and file changes. A restore action is available for reverted work.
+
+Undo is useful for trying a different analysis path. It does not reverse external payments, messages, or changes in a connected service. Use version control or backups for files you need to retain independently of conversation history.
+
+## Customize your setup
+
+Open **Customize** to manage:
+
+- **Models** and **Local models** for model access.
+- **Skills** for reusable instructions.
+- **Tools** for scientific capability availability.
+- **Connectors** for external tools and services.
+- **Compute** for local analysis and your own remote resources.
+- **Storage** and **General** for app data, account selection, appearance, and updates.
+
+[Configuration](/openscience/configuration) covers file-based settings for repeatable setups.
+
+## Browser and terminal sessions
+
+The CLI prints a local workspace URL. If you close the browser tab while the command is still running, reopen that URL. Stopping the CLI stops that running workspace; saved conversations remain available next time.
+
+To choose a port:
+
+```bash
+openscience web --port 4096
+```
+
+For a browser-free server and a request from another terminal:
+
+```bash
+openscience serve --port 4096
+openscience run --attach http://localhost:4096 "Summarize the current project"
+```
+
+Use the actual URL printed at startup. The workspace is for local access; it does not provide public remote hosting.
+
+See [Sessions](/openscience/sessions) for continuing, exporting, and importing conversations.
+
+## Explore workspace features
+
+- [Projects and source folders](/openscience/projects): create a workspace, connect material, pin, and archive.
+- [Tables](/openscience/tables): filter, sort, inspect schema and distributions, and export a subset.
+- [Scientific viewers](/openscience/scientific-viewers): inspect structures, sequences, variants, alignments, and single-cell data.
+- [Saved Results](/openscience/results): retain verified outputs, download, rename, and recover from Trash.
+- [Context and handoffs](/openscience/context): compact long work and prepare a continuation.
+- [Keyboard shortcuts](/openscience/keyboard-shortcuts) and [Preferences](/openscience/preferences): navigate and configure the interface.

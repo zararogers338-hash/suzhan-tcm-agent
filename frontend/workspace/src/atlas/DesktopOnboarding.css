@@ -1,0 +1,259 @@
+/* First-run setup. One centered card, content left-aligned inside it, and
+   exactly three text styles: title (x-large / emphasis), body (base / regular,
+   muted) and small (small / regular, muted). Nothing decorative. */
+.desktop-onboarding {
+  min-height: 100vh;
+  display: flex;
+  align-items: safe center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.5;
+}
+
+.desktop-onboarding--loading {
+  flex-direction: column;
+}
+
+.desktop-onboarding__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  font-size: var(--font-size-medium);
+}
+
+.desktop-onboarding__card {
+  display: flex;
+  width: min(440px, 100%);
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.desktop-onboarding__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.desktop-onboarding__logo {
+  width: 22px;
+  height: 22px;
+  color: var(--color-text);
+}
+
+.desktop-onboarding__count,
+.desktop-onboarding__note,
+.desktop-onboarding__link,
+.desktop-onboarding__row-done {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  line-height: 1.5;
+}
+
+.desktop-onboarding__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.desktop-onboarding__card h1 {
+  margin: 0;
+  font-size: var(--font-size-x-large);
+  font-weight: var(--font-weight-emphasis);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.desktop-onboarding__card h1:focus {
+  outline: none;
+}
+
+.desktop-onboarding__body {
+  margin: -8px 0 0;
+  color: var(--color-text-muted);
+}
+
+.desktop-onboarding__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.desktop-onboarding__actions > [data-component="button"][data-size="large"] {
+  width: 100%;
+}
+
+.desktop-onboarding__note {
+  margin: 0;
+}
+
+.desktop-onboarding__done {
+  margin: 0;
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
+}
+
+.desktop-onboarding__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.18em;
+  transition:
+    color 120ms ease,
+    text-decoration-color 120ms ease;
+}
+
+.desktop-onboarding__link:hover:not(:disabled) {
+  color: var(--color-text);
+  text-decoration-color: currentColor;
+}
+
+.desktop-onboarding__link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.desktop-onboarding__link:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Inline key entry: field and button on one row. */
+.desktop-onboarding__inline {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Connection rows: logo, name, one control. Hairlines, no boxes. */
+.desktop-onboarding__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.desktop-onboarding__rows > li {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.desktop-onboarding__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 0;
+}
+
+.desktop-onboarding__rows .desktop-onboarding__inline {
+  padding: 0 0 12px 36px;
+}
+
+/* The logo box normally comes from the Settings dialog's styles, which are
+   not mounted yet on the first run. Plain marks, no tile. */
+.desktop-onboarding .settings-provider-logo {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text);
+}
+
+.desktop-onboarding__row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-onboarding__row-done {
+  color: var(--color-success);
+}
+
+/* Summary */
+.desktop-onboarding__summary {
+  margin: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.desktop-onboarding__summary > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.desktop-onboarding__summary dt {
+  color: var(--color-text-muted);
+}
+
+.desktop-onboarding__summary dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-onboarding__error {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+  border-radius: 8px;
+  outline: none;
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+  color: var(--color-error);
+  font-size: var(--font-size-medium);
+}
+
+.desktop-onboarding__error:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+.desktop-onboarding__foot {
+  display: flex;
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-onboarding__link {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .desktop-onboarding {
+    padding: 24px 12px;
+  }
+
+  .desktop-onboarding__card {
+    padding: 24px 20px;
+  }
+
+  .desktop-onboarding__rows .desktop-onboarding__inline {
+    padding-left: 0;
+  }
+}
