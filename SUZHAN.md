@@ -36,7 +36,7 @@ cd outputs\tcm-agent
 - `tcm-model-lock.json`
 - `MODEL-MANIFEST.json`（逐文件大小与 SHA-256）
 
-权重归档不应进入普通 Git commit。建议作为 GitHub Release asset、受控对象存储或 Git LFS 对象分发；普通 GitHub 仓库只保留模型锁定信息、下载脚本和校验清单。
+权重归档不应进入普通 Git commit。仓库只保存 model.safetensors.pointer 外部权重指针、模型锁定信息和校验清单；完整权重通过 GitHub Release asset、受控对象存储或单独归档分发。
 
 ## Windows 交付
 
@@ -50,4 +50,5 @@ cd outputs\tcm-agent
 ## 安全边界
 
 Windows 没有可用的强 OS sandbox 后端时，运行策略会明确标记 host execution；这不被描述成强文件系统隔离。外部 API 密钥只应在本地模型设置中填写。科学结论保持 `retrieval_only_not_verified` 或待研究者审查状态，不由引文存在性自动升级。
+
 
